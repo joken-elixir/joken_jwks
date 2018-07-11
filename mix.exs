@@ -1,4 +1,4 @@
-defmodule JokenJwksHook.MixProject do
+defmodule JokenJwks.MixProject do
   use Mix.Project
 
   def project do
@@ -13,7 +13,7 @@ defmodule JokenJwksHook.MixProject do
 
   def application do
     [
-      mod: {JokenJwksHook.Application, []},
+      mod: {JokenJwks.Application, []},
       extra_applications: [:logger]
     ]
   end

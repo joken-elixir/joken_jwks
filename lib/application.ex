@@ -1,4 +1,4 @@
-defmodule JokenJwksHook.Application do
+defmodule JokenJwks.Application do
   use Application
 
   @doc false

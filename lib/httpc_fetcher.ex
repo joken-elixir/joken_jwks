@@ -1,4 +1,4 @@
-defmodule JokenJwksHook.Fetcher do
+defmodule JokenJwks.HttpFetcher do
   use Tesla
 
   plug(Tesla.Middleware.Retry, delay: 500, max_retries: 10)
