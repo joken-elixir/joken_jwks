@@ -3,7 +3,7 @@ defmodule JokenJwksHook.MixProject do
 
   def project do
     [
-      app: :joken_jwks_hook,
+      app: :joken_jwks,
       version: "0.1.0",
       elixir: "~> 1.6",
       start_permanent: Mix.env() == :prod,
