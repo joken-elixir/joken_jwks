@@ -1,4 +1,6 @@
 defmodule JokenJwks.Error do
+  @moduledoc "JWKS errors"
+
   defexception [:reason]
 
   def exception(reason), do: %__MODULE__{reason: reason}

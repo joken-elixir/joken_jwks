@@ -4,37 +4,56 @@ defmodule JokenJwks do
   @cache :joken_jwks_cache
 
   @impl true
-  def before_verify(hook_options, token, _signer) do
-    with {:ok, signer} <- hook_options |> fetch_jwks_options() |> fetch_signer() do
-      {:ok, token, signer}
+  def before_verify(_hook_options, {:error, reason}, _token, _signer), do: {:error, reason}
+
+  def before_verify(hook_options, _status, token, _signer) do
+    with {:ok, signers} <- hook_options |> fetch_jwks_url() |> fetch_signers(),
+         {:ok, signer} <- match_signer_with_token(token, signers) do
+      {:cont, {:ok, token, signer}}
     else
-      error ->
-        {:halt, error}
+      err ->
+        {:halt, err}
     end
   end
 
-  defp fetch_jwks_options(options) do
-    app = options[:app_config] || :joken_jwks
-    url = Application.get_env(app, :joken_jwks_url)
-    key_id = Application.get_env(app, :joken_jwks_key_id)
+  defp match_signer_with_token(token, signers) do
+    kid =
+      token
+      |> Joken.peek_header()
+      |> Map.get("kid")
 
-    unless url && key_id, do: raise(JokenJwks.Error, [:no_configuration_set, app])
-
-    [jwks_url: url, key_id: key_id]
+    with {^kid, signer} <-
+           Enum.find(signers, {:error, :kid_does_not_match}, &(elem(&1, 0) == kid)) do
+      {:ok, signer}
+    end
   end
 
-  defp fetch_signer(opts = [jwks_url: _url, key_id: _id]) do
-    with {:ok, signer} <- Cachex.fetch(@cache, :signer, fn _ -> {:error, :missing} end) do
-      {:ok, signer}
-    else
-      {:error, :missing} ->
-        {:ok, signer} = JokenJwks.HttpFetcher.fetch_signer(opts)
+  defp fetch_jwks_url(options) do
+    app = options[:app_config] || :joken_jwks
+    url = Application.get_env(app, :joken_jwks_url)
 
-        if is_nil(signer) do
-          {:halt, :could_not_signer}
+    unless url, do: raise(JokenJwks.Error, [:no_configuration_set, app])
+    url
+  end
+
+  defp fetch_signers(url) do
+    case Cachex.get(@cache, :jwks_signers) do
+      {:ok, signers} when not is_nil(signers) ->
+        {:ok, signers}
+
+      _ ->
+        with {:ok, keys} when not is_nil(keys) <- JokenJwks.HttpFetcher.fetch_signers(url) do
+          signers =
+            Enum.map(keys, fn key -> {key["kid"], Joken.Signer.create(key["alg"], key)} end)
+
+          Cachex.put(@cache, :jwks_signers, signers)
+          {:ok, signers}
         else
-          Cachex.put(@cache, :signer, signer)
-          {:ok, signer}
+          {:ok, nil} ->
+            {:error, :could_not_fetch_signers}
+
+          err ->
+            err
         end
     end
   end

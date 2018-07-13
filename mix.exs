@@ -21,6 +21,7 @@ defmodule JokenJwks.MixProject do
   defp deps do
     [
       {:joken, github: "victorolinasc/joken", branch: "vn/joken2_poc"},
+      {:jason, "~> 1.1"},
       {:cachex, "~> 3.0"},
       {:tesla, "~> 1.0"}
     ]

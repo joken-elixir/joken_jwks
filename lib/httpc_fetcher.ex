@@ -1,33 +1,28 @@
 defmodule JokenJwks.HttpFetcher do
-  use Tesla
+  use Tesla, doc: false
 
-  plug(Tesla.Middleware.Retry, delay: 500, max_retries: 10)
-  plug(Tesla.Middleware.JSON)
-  plug(Tesla.Middleware.Logger)
+  alias Tesla.Middleware
 
-  def fetch_signer(_opts = [jwks_url: url, key_id: key_id]) do
+  plug(Middleware.Retry, delay: 500, max_retries: 10)
+  plug(Middleware.JSON)
+  plug(Middleware.Logger)
+
+  @doc "Fetches the Joken.Signer from configuration"
+  def fetch_signers(url) do
     {:ok, resp} = get(url)
 
     with 200 <- resp.status,
          keys <- resp.body["keys"] do
-      do_parse_key(Enum.filter(keys, &(&1["kid"] == key_id)))
+      {:ok, keys}
     else
       status when is_integer(status) and status >= 400 and status < 500 ->
-        {:error, :client_http_error}
+        {:error, :jwks_client_http_error}
 
-      status when is_integer(status) and status > 500 ->
-        {:error, :server_http_error}
+      status when is_integer(status) and status >= 500 ->
+        {:error, :jwks_server_http_error}
 
       error ->
         error
     end
-  end
-
-  defp do_parse_key(nil) do
-    {:error, :no_key_found}
-  end
-
-  defp do_parse_key([key = %{"alg" => alg}]) when is_map(key) do
-    {:ok, Joken.Signer.create(alg, key)}
   end
 end
