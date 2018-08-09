@@ -1,5 +1,7 @@
 defmodule JokenJwks.HttpFetcher do
-  use Tesla, doc: false
+  @moduledoc "Fetches signers in the JWKS url"
+
+  use Tesla, docs: false
 
   alias Tesla.Middleware
 
@@ -7,7 +9,13 @@ defmodule JokenJwks.HttpFetcher do
   plug(Middleware.JSON)
   plug(Middleware.Logger)
 
-  @doc "Fetches the Joken.Signer from configuration"
+  @doc """
+  Fetches the JWKS signers from the given url
+
+  This retries up to 10 times with a fixed delay of 500 ms until the server
+  delivers an answer. We only perform a GET request that is idempotent.
+  """
+  @spec fetch_signers(binary) :: {:ok, map} | {:error, atom}
   def fetch_signers(url) do
     {:ok, resp} = get(url)
 

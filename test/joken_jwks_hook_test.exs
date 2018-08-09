@@ -24,13 +24,12 @@ defmodule JokenJwksHookTest do
   defmodule TestToken do
     use Joken.Config
 
-    add_hook(JokenJwks)
+    add_hook(JokenJwks, jwks_url: "http://jwks")
 
     def token_config, do: %{}
   end
 
   setup do
-    Application.put_env(:joken_jwks, :joken_jwks_url, "http://jwks")
     Cachex.clear(:joken_jwks_cache)
 
     mock(fn
@@ -55,11 +54,32 @@ defmodule JokenJwksHookTest do
   end
 
   @tag :capture_log
-  test "fails if  it can't fetch" do
-    token = TestToken.generate_and_sign!(%{}, create_signer_with_kid("id1"))
-    Application.put_env(:joken_jwks, :joken_jwks_url, "http://jwks/500")
+  test "fails if it can't fetch" do
+    defmodule Server500 do
+      use Joken.Config
 
-    assert {:error, :jwks_server_http_error} == TestToken.verify_and_validate(token)
+      add_hook(JokenJwks, jwks_url: "http://jwks/500")
+
+      def token_config, do: %{}
+    end
+
+    token = Server500.generate_and_sign!(%{}, create_signer_with_kid("id1"))
+
+    assert {:error, :jwks_server_http_error} == Server500.verify_and_validate(token)
+  end
+
+  test "fails if no option was provided" do
+    defmodule NoJwksUrl do
+      use Joken.Config
+
+      add_hook(JokenJwks)
+
+      def token_config, do: %{}
+    end
+
+    assert_raise(JokenJwks.Error, ~r/No option `jwks_url` was passed./, fn ->
+      NoJwksUrl.verify_and_validate("")
+    end)
   end
 
   defp build_key(kid) do

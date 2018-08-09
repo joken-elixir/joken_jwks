@@ -1,4 +1,23 @@
 defmodule JokenJwks do
+  @moduledoc """
+  Fetches a signer from a public JWKS URL
+
+  This hook is intended to be used when you are verifying a token is signed with
+  a well known public key. This is, for example, part of the OpenID Connect spec.
+
+  To use it, pass this hook to Joken either with the `add_hook/2` macro or directly
+  to each Joken function. Example:
+
+      defmodule MyToken do
+        use Joken.Config
+        
+        add_hook(JokenJwks, jwks_url: "https://some-well-known-jwks-url.com")
+        
+        # rest of your token config
+      end
+
+  """
+
   use Joken.Hooks
 
   @cache :joken_jwks_cache
@@ -28,13 +47,8 @@ defmodule JokenJwks do
     end
   end
 
-  defp fetch_jwks_url(options) do
-    app = options[:app_config] || :joken_jwks
-    url = Application.get_env(app, :joken_jwks_url)
-
-    unless url, do: raise(JokenJwks.Error, [:no_configuration_set, app])
-    url
-  end
+  defp fetch_jwks_url(options),
+    do: options[:jwks_url] || raise(JokenJwks.Error, :no_jwks_url)
 
   defp fetch_signers(url) do
     case Cachex.get(@cache, :jwks_signers) do

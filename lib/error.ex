@@ -5,12 +5,13 @@ defmodule JokenJwks.Error do
 
   def exception(reason), do: %__MODULE__{reason: reason}
 
-  def message(%__MODULE__{reason: [:no_configuration_set, app]}),
+  @impl true
+  def message(%__MODULE__{reason: :no_jwks_url}),
     do: """
-    No configuration was set for fetching JWKs keys for application: #{app}.
+    No option `jwks_url` was passed. We can't fetch a signer without it.
 
-    It is expected that `joken_jwks_url` and `joken_jwks_key_id` be set.
+    When you add `JokenJwks` hook, you must pass a `jwks_url` option:
 
-    If you need dynamic values, set them under your intialization callback.
+    `add_hook(JokenJwks, jwks_url: "https://example_url.com)`
     """
 end

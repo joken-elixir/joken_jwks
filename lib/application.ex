@@ -1,4 +1,6 @@
 defmodule JokenJwks.Application do
+  @moduledoc false
+
   use Application
 
   @doc false
