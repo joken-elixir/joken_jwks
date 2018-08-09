@@ -16,6 +16,14 @@ defmodule JokenJwks do
         # rest of your token config
       end
 
+  ## Options
+
+  This hook accepts 2 types of configuration: 
+
+    - `app_config`: accepts an atom that should be the application that has a 
+      configuration key `joken_jwks_url`. This is a dynamic configuration. 
+    - `jwks_url`: the fixed URL for the JWKS. This is a static configuration.
+
   """
 
   use Joken.Hooks
@@ -47,8 +55,20 @@ defmodule JokenJwks do
     end
   end
 
-  defp fetch_jwks_url(options),
-    do: options[:jwks_url] || raise(JokenJwks.Error, :no_jwks_url)
+  defp fetch_jwks_url(options) do
+    app = options[:app_config]
+
+    jwks_url =
+      if not is_nil(app) do
+        Application.get_env(app, :joken_jwks_url)
+      else
+        options[:jwks_url]
+      end
+
+    unless jwks_url, do: raise(JokenJwks.Error, :no_jwks_url)
+
+    jwks_url
+  end
 
   defp fetch_signers(url) do
     case Cachex.get(@cache, :jwks_signers) do

@@ -82,6 +82,21 @@ defmodule JokenJwksHookTest do
     end)
   end
 
+  test "can use :app_config for url" do
+    Application.put_env(:joken_jwks, :joken_jwks_url, "http://jwks")
+
+    defmodule AppConfigJwksUrl do
+      use Joken.Config
+
+      add_hook(JokenJwks, app_config: :joken_jwks)
+
+      def token_config, do: %{}
+    end
+
+    token = AppConfigJwksUrl.generate_and_sign!(%{}, create_signer_with_kid("id2"))
+    assert {:ok, %{}} == AppConfigJwksUrl.verify_and_validate(token)
+  end
+
   defp build_key(kid) do
     %{
       "kid" => kid,

@@ -3,6 +3,7 @@ defmodule JokenJwks.Error do
 
   defexception [:reason]
 
+  @impl true
   def exception(reason), do: %__MODULE__{reason: reason}
 
   @impl true
