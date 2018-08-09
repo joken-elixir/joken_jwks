@@ -59,10 +59,10 @@ defmodule JokenJwks do
     app = options[:app_config]
 
     jwks_url =
-      if not is_nil(app) do
-        Application.get_env(app, :joken_jwks_url)
-      else
+      if is_nil(app) do
         options[:jwks_url]
+      else
+        Application.get_env(app, :joken_jwks_url)
       end
 
     unless jwks_url, do: raise(JokenJwks.Error, :no_jwks_url)
