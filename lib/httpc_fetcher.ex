@@ -17,9 +17,8 @@ defmodule JokenJwks.HttpFetcher do
   """
   @spec fetch_signers(binary) :: {:ok, map} | {:error, atom}
   def fetch_signers(url) do
-    {:ok, resp} = get(url)
-
-    with 200 <- resp.status,
+    with {:ok, resp} <- get(url),
+         200 <- resp.status,
          keys <- resp.body["keys"] do
       {:ok, keys}
     else
@@ -28,6 +27,9 @@ defmodule JokenJwks.HttpFetcher do
 
       status when is_integer(status) and status >= 500 ->
         {:error, :jwks_server_http_error}
+
+      {:error, :econnrefused} ->
+        {:error, :could_not_reach_jwks_url}
 
       error ->
         error
