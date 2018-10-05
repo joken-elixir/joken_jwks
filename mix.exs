@@ -27,7 +27,7 @@ defmodule JokenJwks.MixProject do
 
   defp deps do
     [
-      {:joken, "~> 2.0.0-rc0"},
+      {:joken, "~> 2.0.0-rc2"},
       {:jason, "~> 1.1"},
       {:cachex, "~> 3.0"},
       {:tesla, "~> 1.1"},
