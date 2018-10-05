@@ -2,6 +2,7 @@ defmodule JokenJwks.HttpFetcher do
   @moduledoc "Fetches signers in the JWKS url"
 
   use Tesla, docs: false
+  require Logger
 
   alias Tesla.Middleware
 
@@ -20,18 +21,23 @@ defmodule JokenJwks.HttpFetcher do
     with {:ok, resp} <- get(url),
          200 <- resp.status,
          keys <- resp.body["keys"] do
+      Logger.debug("JWKS fetching: fetched keys -> #{inspect(keys)}")
       {:ok, keys}
     else
       status when is_integer(status) and status >= 400 and status < 500 ->
+        Logger.debug("JWKS fetching: #{status} -> client error")
         {:error, :jwks_client_http_error}
 
       status when is_integer(status) and status >= 500 ->
+        Logger.debug("JWKS fetching: #{status} -> server error")
         {:error, :jwks_server_http_error}
 
       {:error, :econnrefused} ->
+        Logger.debug("JWKS fetching: could not connect")
         {:error, :could_not_reach_jwks_url}
 
       error ->
+        Logger.debug("JWKS fetching: unkown error #{inspect(error)}")
         error
     end
   end
