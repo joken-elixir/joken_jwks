@@ -1,3 +1,3 @@
 use Mix.Config
 
-if Mix.env() == :test, do: import_config("#{Mix.env()}.exs")
+config :tesla, JokenJwks.HttpFetcher, adapter: Tesla.Adapter.Hackney
