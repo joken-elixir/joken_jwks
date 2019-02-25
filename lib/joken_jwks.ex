@@ -4,8 +4,8 @@ defmodule JokenJwks do
 
   This hook is intended to be used when you are _verifying_ a token is signed with
   a well known public key. It only overrides the `before_verify/2` callback providing a
-  `Joken.Signer` for the given token. It is important to notice this is not meant for 
-  use when **GENERATING** a token. So, using this hook with `Joken.encode_and_sign` 
+  `Joken.Signer` for the given token. It is important to notice this is not meant for
+  use when **GENERATING** a token. So, using this hook with `Joken.encode_and_sign`
   function **WILL NOT WORK!!!**
 
   To use it, pass this hook to Joken either with the `add_hook/2` macro or directly
@@ -36,9 +36,9 @@ defmodule JokenJwks do
 
   In these cases (and some others) it is important to have a cache invalidation strategy: all your
   cached keys should be refreshed. Since the best strategy might differ for each use case, there
-  is a behaviour that can be customized as the "fetching strategy", that is: when to fetch and refetch
+  is a behaviour that can be customized as the "fetching strategy", that is: when to fetch and re-fetch
   keys. `JokenJwks` has a default strategy that tries to be smart and cover most use cases by default. 
-  It combines a time based state machine to avoid overflowing the system with refetching keys. If  that 
+  It combines a time based state machine to avoid overflowing the system with re-fetching keys. If  that
   is not a good option for your use case, it can still be configured. Please, see 
   `JokenJwks.SignerMatchStrategy` or `JokenJwks.DefaultStrategyTemplate` docs for more information.
   """
