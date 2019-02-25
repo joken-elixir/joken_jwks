@@ -49,9 +49,9 @@ defmodule JokenJwks.DefaultStrategyTemplate do
   ### Example usage:
 
       defmodule MyStrategy do
-        use JokenJwks.DefaultStrategy
+        use JokenJwks.DefaultMatchStrategy
 
-        def init(opts) do
+        def init_opts(opts) do
           url = # fetch url ...
           Keyword.merge(opts, jwks_url: url)
         end
