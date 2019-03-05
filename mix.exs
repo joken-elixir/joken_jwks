@@ -39,7 +39,7 @@ defmodule JokenJwks.MixProject do
 
   defp deps do
     [
-      {:joken, "~> 2.0.0"},
+      {:joken, "~> 2.0"},
       {:jason, "~> 1.1"},
       {:tesla, "~> 1.2"},
       {:hackney, "~> 1.14"},
@@ -52,7 +52,7 @@ defmodule JokenJwks.MixProject do
       {:excoveralls, "~> 0.10", only: :test},
 
       # tests
-      {:mox, "~> 0.4", only: :test}
+      {:mox, "~> 0.5", only: :test}
     ]
   end
 
