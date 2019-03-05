@@ -44,11 +44,14 @@ defmodule JokenJwks.DefaultStrategyTemplate do
     events in the strategy like HTTP errors and so on. It is advised not to turn off logging in production;
     - `should_start` (`boolean()` - default true): whether to start the supervised polling task. For tests, this
     should be false;
-    - `first_fetch_sync` (`boolean()` - default false): whether to fetch the first time synchronously or async.
+    - `first_fetch_sync` (`boolean()` - default false): whether to fetch the first time synchronously or async;
+    - `explicit_alg` (`String.t()`): the JWS algorithm for use with the key. Overrides the one in the JWK;
+    - `http_max_retries_per_fetch` (`pos_integer()` - default 10): passed to `Tesla.Middleware.Retry`;
+    - `http_delay_per_retry` (`pos_integer()` - default 500): passed to `Tesla.Middleware.Retry`.
 
   ### Example usage:
 
-      defmodule MyStrategy do
+      defmodule JokenExample.MyStrategy do
         use JokenJwks.DefaultMatchStrategy
 
         def init_opts(opts) do
@@ -158,18 +161,24 @@ defmodule JokenJwks.DefaultStrategyTemplate do
         url = opts[:jwks_url] || raise "No url set for fetching JWKS!"
         EtsCache.new()
 
-        do_init(start?, first_fetch_sync, time_interval, log_level, url)
+        opts =
+          opts
+          |> Keyword.put(:time_interval, time_interval)
+          |> Keyword.put(:log_level, log_level)
+          |> Keyword.put(:jwks_url, url)
+
+        do_init(start?, first_fetch_sync, opts)
       end
 
-      defp do_init(start?, first_fetch_sync, time_interval, log_level, url) do
+      defp do_init(should_start, first_fetch_sync, opts) do
         cond do
-          start? and first_fetch_sync ->
-            fetch_signers(url, log_level)
-            Task.start_link(__MODULE__, :poll, [time_interval, log_level, url])
+          should_start and first_fetch_sync ->
+            fetch_signers(opts[:jwks_url], opts)
+            Task.start_link(__MODULE__, :poll, [opts])
 
-          start? ->
-            start_fetch_signers(url, log_level)
-            Task.start_link(__MODULE__, :poll, [time_interval, log_level, url])
+          should_start ->
+            start_fetch_signers(opts[:jwks_url], opts)
+            Task.start_link(__MODULE__, :poll, [opts])
 
           true ->
             {:ok, spawn_link(fn -> "Normal shutdown" end)}
@@ -177,7 +186,7 @@ defmodule JokenJwks.DefaultStrategyTemplate do
       end
 
       @impl SignerMatchStrategy
-      def match_signer_for_kid(kid, _opts) do
+      def match_signer_for_kid(kid, opts) do
         with {:cache, [{:signers, signers}]} <- {:cache, EtsCache.get_signers()},
              {:signer, signer} when not is_nil(signer) <- {:signer, signers[kid]} do
           {:ok, signer}
@@ -195,37 +204,41 @@ defmodule JokenJwks.DefaultStrategyTemplate do
       end
 
       @doc false
-      def poll(time_interval, log_level, url) when is_integer(time_interval) do
+      def poll(opts) do
+        interval = opts[:time_interval]
+
         receive do
         after
-          time_interval ->
-            check_fetch(url, log_level)
-            poll(time_interval, log_level, url)
+          interval ->
+            check_fetch(opts)
+            poll(opts)
         end
       end
 
-      defp check_fetch(url, log_level) do
+      defp check_fetch(opts) do
         case EtsCache.check_state() do
           # no need to re-fetch
           0 ->
-            JokenJwks.log(:debug, log_level, "Re-fetching cache is not needed.")
+            JokenJwks.log(:debug, opts[:log_level], "Re-fetching cache is not needed.")
             :ok
 
           # start re-fetching
           _counter ->
-            JokenJwks.log(:debug, log_level, "Re-fetching cache is needed and will start.")
-            start_fetch_signers(url, log_level)
+            JokenJwks.log(:debug, opts[:log_level], "Re-fetching cache is needed and will start.")
+            start_fetch_signers(opts[:jwks_url], opts)
         end
       end
 
-      defp start_fetch_signers(url, log_level) do
-        Task.start(fn -> fetch_signers(url, log_level) end)
+      defp start_fetch_signers(url, opts) do
+        Task.start(fn -> fetch_signers(url, opts) end)
       end
 
       @doc "Fetch signers with `JokenJwks.HttpFetcher`"
-      def fetch_signers(url, log_level) do
-        with {:ok, keys} <- HttpFetcher.fetch_signers(url, log_level),
-             {:ok, signers} <- validate_and_parse_keys(keys, log_level) do
+      def fetch_signers(url, opts) do
+        log_level = opts[:log_level]
+
+        with {:ok, keys} <- HttpFetcher.fetch_signers(url, opts),
+             {:ok, signers} <- validate_and_parse_keys(keys, opts) do
           JokenJwks.log(:debug, log_level, "Fetched signers. #{inspect(signers)}")
           EtsCache.put_signers(signers)
           EtsCache.set_status(:ok)
@@ -245,9 +258,9 @@ defmodule JokenJwks.DefaultStrategyTemplate do
         end
       end
 
-      defp validate_and_parse_keys(keys, log_level) when is_list(keys) do
+      defp validate_and_parse_keys(keys, opts) when is_list(keys) do
         Enum.reduce_while(keys, {:ok, %{}}, fn key, {:ok, acc} ->
-          with {:ok, signer} <- parse_signer(key, log_level) do
+          with {:ok, signer} <- parse_signer(key, opts) do
             {:cont, {:ok, Map.put(acc, key["kid"], signer)}}
           else
             e -> {:halt, e}
@@ -255,18 +268,18 @@ defmodule JokenJwks.DefaultStrategyTemplate do
         end)
       end
 
-      defp parse_signer(key, log_level) do
+      defp parse_signer(key, opts) do
         with {:kid, kid} when is_binary(kid) <- {:kid, key["kid"]},
-             {:alg, alg} when is_binary(alg) <- {:alg, key["alg"]},
+             {:ok, alg} <- get_algorithm(key["alg"], opts[:explicit_alg]),
              {:ok, _signer} = res <- {:ok, Signer.create(alg, key)} do
           res
         else
           {:kid, _} -> {:error, :kid_not_binary}
-          {:alg, _} -> {:error, :algorithm_not_binary}
+          err -> err
         end
       rescue
         e ->
-          JokenJwks.log(:error, log_level, """
+          JokenJwks.log(:error, opts[:log_level], """
           Error while parsing a key entry fetched from the network.
 
           This should be investigated by a human.
@@ -278,6 +291,15 @@ defmodule JokenJwks.DefaultStrategyTemplate do
 
           {:error, :invalid_key_params}
       end
+
+      # According to JWKS spec (https://tools.ietf.org/html/rfc7517#section-4.4) the "alg"" claim
+      # is not mandatory. This is why we allow this to be passed as a hook option.
+      #
+      # We give preference to the one provided as option
+      defp get_algorithm(nil, nil), do: {:error, :no_algorithm_supplied}
+      defp get_algorithm(_, alg) when is_binary(alg), do: {:ok, alg}
+      defp get_algorithm(alg, _) when is_binary(alg), do: {:ok, alg}
+      defp get_algorithm(_, _), do: {:error, :bad_algorithm}
     end
   end
 end

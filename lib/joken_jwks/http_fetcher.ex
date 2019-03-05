@@ -12,8 +12,6 @@ defmodule JokenJwks.HttpFetcher do
   """
   alias Tesla.Middleware, as: M
 
-  @middleware [{M.Retry, delay: 500, max_retries: 10}, M.JSON, M.Logger]
-
   @doc """
   Fetches the JWKS signers from the given url.
 
@@ -23,8 +21,10 @@ defmodule JokenJwks.HttpFetcher do
   We use `:hackney` as it validates certificates automatically.
   """
   @spec fetch_signers(binary, boolean) :: {:ok, list} | {:error, atom} | no_return()
-  def fetch_signers(url, log_level) do
-    with {:ok, resp} <- Tesla.get(new(), url),
+  def fetch_signers(url, opts) do
+    log_level = opts[:log_level]
+
+    with {:ok, resp} <- Tesla.get(new(opts), url),
          {:status, 200} <- {:status, resp.status},
          {:keys, keys} when not is_nil(keys) <- {:keys, resp.body["keys"]} do
       JokenJwks.log(:debug, log_level, "JWKS fetching: fetched keys -> #{inspect(keys)}")
@@ -56,11 +56,21 @@ defmodule JokenJwks.HttpFetcher do
 
   @default_adapter Tesla.Adapter.Hackney
 
-  defp new do
+  defp new(opts) do
     adapter =
       Application.get_env(:tesla, __MODULE__)[:adapter] ||
         Application.get_env(:tesla, :adapter, @default_adapter)
 
-    Tesla.client(@middleware, adapter)
+    adapter = opts[:http_adapter] || adapter
+
+    middleware = [
+      M.JSON,
+      M.Logger,
+      {M.Retry,
+       delay: opts[:http_delay_per_retry] || 500,
+       max_retries: opts[:http_max_retries_per_fetch] || 10}
+    ]
+
+    Tesla.client(middleware, adapter)
   end
 end
