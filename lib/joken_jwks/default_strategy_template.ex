@@ -5,10 +5,10 @@ defmodule JokenJwks.DefaultStrategyTemplate do
   in order to use the default strategy.
 
   This implementation is a task that should be supervised. It loops on a time window checking 
-  whether it should refetch keys or not.
+  whether it should re-fetch keys or not.
 
-  Everytime a bad kid is received it writes to an ets table a counter to 1. When the task
-  loops, it polls for the counter value. If it is more than zero it starts refecthing the 
+  Every time a bad kid is received it writes to an ets table a counter to 1. When the task
+  loops, it polls for the counter value. If it is more than zero it starts re-fetching the
   cache. Upon successful fetching, it zeros the counter once again. This way we avoid 
   overloading the JWKS server.
 
@@ -17,10 +17,10 @@ defmodule JokenJwks.DefaultStrategyTemplate do
 
   ## Usage
 
-  This strategy must be under your apps' supervision tree. It must be explicetely used under a
-  module so that you can have more than one JWKS source. 
+  This strategy must be under your apps' supervision tree. It must be explicitly used under a
+  module so that you can have more than one JWKS source.
 
-  When using this strategy, there is an `init_opts/1` callback that can be overriden. This is called
+  When using this strategy, there is an `init_opts/1` callback that can be overridden. This is called
   upon supervision start. It should return a keyword list with all the options. This follows the
   standard practice of allowing a callback for using runtime configuration. It can override all
   other options as this has higher preference.
@@ -33,25 +33,25 @@ defmodule JokenJwks.DefaultStrategyTemplate do
     - Supervisor child options
     - `init_opts/1` callback
 
-  The only mandatory option is `jwks_url` (`binary()`) that is, usually, a runtime parameter like a system 
-  environment variable. It is recommended to use the `init_opts/1` callback. 
+  The only mandatory option is `jwks_url` (`binary()`) that is, usually, a runtime parameter like a system
+  environment variable. It is recommended to use the `init_opts/1` callback.
 
   Other options are:
 
-    - `time_interval` (`integer()` - default 60_000 (1 minute)): time interval for polling if it is needed to 
-    refetch the keys;
-    - `log_level` (`:none | :debug | :info | :warn | :error` - default `:debug`): the level of log to use for 
+    - `time_interval` (`integer()` - default 60_000 (1 minute)): time interval for polling if it is needed to
+    re-fetch the keys;
+    - `log_level` (`:none | :debug | :info | :warn | :error` - default `:debug`): the level of log to use for
     events in the strategy like HTTP errors and so on. It is advised not to turn off logging in production;
-    - `should_start` (`boolean()` - default true): whether to start the supervised polling task. For tests, this 
+    - `should_start` (`boolean()` - default true): whether to start the supervised polling task. For tests, this
     should be false;
-    - `first_fetch_sync` (`boolean()` - default false): whether to fetch the first time synchrounously or async.
+    - `first_fetch_sync` (`boolean()` - default false): whether to fetch the first time synchronously or async.
 
   ### Example usage:
 
       defmodule MyStrategy do
-        use JokenJwks.DefaultStrategy
+        use JokenJwks.DefaultMatchStrategy
 
-        def init(opts) do
+        def init_opts(opts) do
           url = # fetch url ...
           Keyword.merge(opts, jwks_url: url)
         end
