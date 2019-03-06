@@ -32,7 +32,7 @@ defmodule JokenJwks.TestUtils do
     }
   end
 
-  def create_signer_with_kid(kid) do
-    Signer.create("RS512", %{"pem" => @rsa_private}, %{"kid" => kid})
+  def create_signer_with_kid(kid, alg \\ "RS512") do
+    Signer.create(alg, %{"pem" => @rsa_private}, %{"kid" => kid})
   end
 end

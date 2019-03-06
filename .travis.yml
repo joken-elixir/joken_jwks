@@ -4,13 +4,29 @@ language: elixir
 elixir:
   - 1.6.6
   - 1.7.4
+  - 1.8.1
 
 otp_release:
   - 19.3
   - 20.3
-  - 21.0
+  - 21.2
+
+matrix:
+  exclude:
+    - otp_release: 19.3
+      elixir: 1.8.1
 
 script:
-  - mix credo
+  - mix credo --strict
   - mix format --check-formatted
   - MIX_ENV=test mix coveralls.travis
+  - mix test --only external
+
+cache:
+  directories:
+    - ~/.mix
+    - ~/.hex
+    - deps
+    - _build
+
+

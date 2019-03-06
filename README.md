@@ -15,7 +15,7 @@ Please see our guides and documentation for usage.
 ```elixir
 def deps do
   [
-    {:joken_jwks, "~> 1.0.0"}
+    {:joken_jwks, "~> 1.1.0"}
   ]
 end
 ```

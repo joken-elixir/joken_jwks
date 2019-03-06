@@ -1,4 +1,4 @@
+ExUnit.configure(exclude: [external: true])
 ExUnit.start()
-
-Mox.defmock(TeslaAdaterMock, for: Tesla.Adapter)
-Application.put_env(:tesla, JokenJwks.HttpFetcher, adapter: TeslaAdaterMock)
+Mox.defmock(TeslaAdapterMock, for: Tesla.Adapter)
+Application.put_env(:tesla, JokenJwks.HttpFetcher, adapter: TeslaAdapterMock)

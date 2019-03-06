@@ -37,3 +37,14 @@ This could potentially open an attack vector for massively hitting the authentic
 
 `JokenJwks` comes with a smart enough implementation that uses a time window approach for re-fetching signers. By default, it polls the cache state every minute to see if a bad kid was attempted. If so, it refetches the cache. So, it will fetch JWKS once every minute tops. 
 
+## Interpretation of the JWKS RFC
+
+Since the JWKS specification is just that, a specification, many servers might disagree on how to implement this. For example, Google specifies the "alg" claim on every key instance. Microsoft does not. Therefore we assume some interpretations:
+
+- Every key must have a "kid" (even if there is only one key);
+- We don't currently check for the "use" claim and so we might hit an encryption key (which will be parsed as well);
+- If no "alg" claim is provided, then the user must pass the option "explicit_alg".
+
+That's it for now :)
+
+
