@@ -42,7 +42,7 @@ defmodule JokenJwks.MixProject do
       {:joken, "~> 2.0"},
       {:jason, "~> 1.1"},
       {:tesla, "~> 1.2"},
-      {:hackney, "~> 1.14"},
+      {:hackney, "~> 1.15.2"},
 
       # docs
       {:ex_doc, "~> 0.19", only: :dev, runtime: false},
