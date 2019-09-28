@@ -38,7 +38,7 @@ defmodule JokenJwks.IntegrationTest do
 
   test "can parse IdentityServer's JWKS" do
     Strategy.start_link(
-      jwks_url: @application_jwks_set_certs_url,
+      jwks_url: @identity_server_certs_url,
       http_adapter: Tesla.Adapter.Hackney,
       first_fetch_sync: true
     )

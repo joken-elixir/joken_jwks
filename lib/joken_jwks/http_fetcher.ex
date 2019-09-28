@@ -64,8 +64,7 @@ defmodule JokenJwks.HttpFetcher do
     adapter = opts[:http_adapter] || adapter
 
     middleware = [
-      {M.JSON,
-       decode_content_types: ["application/jwk-set+json"]},
+      {M.JSON, decode_content_types: ["application/jwk-set+json"]},
       M.Logger,
       {M.Retry,
        delay: opts[:http_delay_per_retry] || 500,
