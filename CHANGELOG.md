@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2019-11-08
+
+### Added
+
+- (René Mygind Andersen) #7 Adds support for parsing JWKS returned with content-type 'applicat…
+
+### Changed
+
+- (@ltj) Use hackney v1.15.2
+
 ## [1.1.0] - 2019-03-05
 
 ### Added
