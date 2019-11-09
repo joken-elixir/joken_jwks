@@ -5,7 +5,7 @@ defmodule JokenJwks.HttpFetcher do
   This must be a standard JWKS URI as per the specification here:
   https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderMetadata
 
-  This uses the `Tesla` library to make it easy to test or change the adapter 
+  This uses the `Tesla` library to make it easy to test or change the adapter
   if wanted.
 
   See our tests for an example of mocking the HTTP fetching.
@@ -64,7 +64,7 @@ defmodule JokenJwks.HttpFetcher do
     adapter = opts[:http_adapter] || adapter
 
     middleware = [
-      M.JSON,
+      {M.JSON, decode_content_types: ["application/jwk-set+json"]},
       M.Logger,
       {M.Retry,
        delay: opts[:http_delay_per_retry] || 500,
