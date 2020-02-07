@@ -226,6 +226,7 @@ defmodule JokenJwks.DefaultStrategyTemplate do
             :telemetry.execute(~w/joken_jwks ets_cache not_needed/a, %{}, %{
               message: "Re-fetching cache is not needed."
             })
+
             :ok
 
           # start re-fetching
@@ -233,6 +234,7 @@ defmodule JokenJwks.DefaultStrategyTemplate do
             :telemetry.execute(~w/joken_jwks ets_cache needed/a, %{}, %{
               message: "Re-fetching cache is needed and will start."
             })
+
             start_fetch_signers(opts[:jwks_url], opts)
         end
       end
@@ -248,21 +250,27 @@ defmodule JokenJwks.DefaultStrategyTemplate do
         with {:ok, keys} <- HttpFetcher.fetch_signers(url, opts),
              {:ok, signers} <- validate_and_parse_keys(keys, opts) do
           :telemetry.execute(~w/joken_jwks fetch_signers success/a, %{}, %{
-            signers: signers, message: "Fetched signers."
+            signers: signers,
+            message: "Fetched signers."
           })
+
           EtsCache.put_signers(signers)
           EtsCache.set_status(:ok)
         else
           {:error, _reason} = err ->
             :telemetry.execute(~w/joken_jwks fetch_signers error/a, %{}, %{
-              error: err, message: "Failed to fetch signers."
+              error: err,
+              message: "Failed to fetch signers."
             })
+
             EtsCache.set_status(:refresh)
 
           err ->
             :telemetry.execute(~w/joken_jwks fetch_signers error/a, %{}, %{
-              error: err, message: "Unexpected error while fetching signers."
+              error: err,
+              message: "Unexpected error while fetching signers."
             })
+
             EtsCache.set_status(:refresh)
         end
       end
@@ -293,6 +301,7 @@ defmodule JokenJwks.DefaultStrategyTemplate do
             key: key,
             message: "Error while parsing a key entry fetched from the network."
           })
+
           {:error, :invalid_key_params}
       end
 

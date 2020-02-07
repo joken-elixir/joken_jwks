@@ -232,6 +232,7 @@ defmodule JokenJwks.DefaultStrategyTest do
     end)
 
     TestToken.Strategy.start_link(jwks_url: "http://jwks", first_fetch_sync: true)
+
     # no sleep here
 
     token = TestToken.generate_and_sign!(%{}, TestUtils.create_signer_with_kid("id1"))

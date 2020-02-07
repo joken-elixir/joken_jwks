@@ -19,7 +19,7 @@ defmodule JokenJwks.Logger do
     ~w/joken_jwks http_fetch_signers error/a,
     ~w/joken_jwks ets_cache not_needed/a,
     ~w/joken_jwks ets_cache needed/a,
-    ~w/joken_jwks parse_signer error/a,
+    ~w/joken_jwks parse_signer error/a
   ]
 
   @doc """
