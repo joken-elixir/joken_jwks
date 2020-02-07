@@ -12,6 +12,9 @@ defmodule JokenJwks.HttpFetcher do
   """
   alias Tesla.Middleware, as: M
 
+  @log_success ~w/joken_jwks http_fetch_signers success/a
+  @log_error ~w/joken_jwks fetch_signers error/a
+
   @doc """
   Fetches the JWKS signers from the given url.
 
@@ -22,34 +25,39 @@ defmodule JokenJwks.HttpFetcher do
   """
   @spec fetch_signers(binary, boolean) :: {:ok, list} | {:error, atom} | no_return()
   def fetch_signers(url, opts) do
-    log_level = opts[:log_level]
-
     with {:ok, resp} <- Tesla.get(new(opts), url),
          {:status, 200} <- {:status, resp.status},
          {:keys, keys} when not is_nil(keys) <- {:keys, resp.body["keys"]} do
-      JokenJwks.log(:debug, log_level, "JWKS fetching: fetched keys -> #{inspect(keys)}")
+      :telemetry.execute(@log_success, %{}, %{keys: keys, message: "JWKS fetching: fetched keys"})
       {:ok, keys}
     else
       {:status, status} when is_integer(status) and status >= 400 and status < 500 ->
-        JokenJwks.log(:debug, log_level, "JWKS fetching: #{status} -> client error")
+        :telemetry.execute(@log_error, %{}, %{status: status, message: "JWKS fetching: client error"})
         {:error, :jwks_client_http_error}
 
       {:status, status} when is_integer(status) and status >= 500 ->
-        JokenJwks.log(:debug, log_level, "JWKS fetching: #{status} -> server error")
+        :telemetry.execute(@log_error, %{}, %{status: status, message: "JWKS fetching: server error"})
         {:error, :jwks_server_http_error}
 
-      {:status, _status} ->
+      {:status, status} ->
+        :telemetry.execute(@log_error, %{}, %{status: status, message: "JWKS fetching: invalid status"})
         {:error, :status_not_200}
 
-      {:error, :econnrefused} ->
-        JokenJwks.log(:debug, log_level, "JWKS fetching: could not connect (:econnrefused)")
+      {:error, :econnrefused} = error ->
+        :telemetry.execute(@log_error, %{}, %{
+          error: error,
+          message: "JWKS fetching: could not connect (:econnrefused)"
+        })
         {:error, :could_not_reach_jwks_url}
 
       {:keys, nil} ->
+        :telemetry.execute(@log_error, %{}, %{
+          error: {:keys, :no_keys_on_response}, message: "JWKS fetching: no keys on response"
+        })
         {:error, :no_keys_on_response}
 
       error ->
-        JokenJwks.log(:debug, log_level, "JWKS fetching: unkown error #{inspect(error)}")
+        :telemetry.execute(@log_error, %{}, %{error: error, message: "JWKS fetching: unkown error"})
         error
     end
   end
