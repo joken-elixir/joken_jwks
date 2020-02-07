@@ -13,7 +13,7 @@ defmodule JokenJwks.HttpFetcher do
   alias Tesla.Middleware, as: M
 
   @log_success ~w/joken_jwks http_fetch_signers success/a
-  @log_error ~w/joken_jwks fetch_signers error/a
+  @log_error ~w/joken_jwks http_fetch_signers error/a
 
   @doc """
   Fetches the JWKS signers from the given url.
