@@ -25,47 +25,61 @@ defmodule JokenJwks.HttpFetcher do
   """
   @spec fetch_signers(binary, boolean) :: {:ok, list} | {:error, atom} | no_return()
   def fetch_signers(url, opts) do
-    {duration, return} = :timer.tc(fn -> call_fetch_signers(url, opts) end)
+    {duration, result} = :timer.tc(Tesla, :get, [new(opts), url])
 
-    case return do
-      {:ok, keys} ->
-        :telemetry.execute(@log_success, %{duration: duration}, %{keys: keys, message: "JWKS fetching: fetched keys"})
-        {:ok, keys}
+    with {:ok, resp} <- result,
+         {:status, 200} <- {:status, resp.status},
+         {:keys, keys} when not is_nil(keys) <- {:keys, resp.body["keys"]} do
+      telemetry_track(:success, duration, %{keys: keys, message: "JWKS fetching: fetched keys"})
+      {:ok, keys}
+    else
       {:status, status} when is_integer(status) and status >= 400 and status < 500 ->
-        :telemetry.execute(@log_error, %{duration: duration}, %{status: status, message: "JWKS fetching: client error"})
+        telemetry_track(:error, duration, %{
+          status: status,
+          message: "JWKS fetching: client error"
+        })
+
         {:error, :jwks_client_http_error}
 
       {:status, status} when is_integer(status) and status >= 500 ->
-        :telemetry.execute(@log_error, %{duration: duration}, %{status: status, message: "JWKS fetching: server error"})
+        telemetry_track(:error, duration, %{
+          status: status,
+          message: "JWKS fetching: server error"
+        })
+
         {:error, :jwks_server_http_error}
 
       {:status, status} ->
-        :telemetry.execute(@log_error, %{duration: duration}, %{status: status, message: "JWKS fetching: invalid status"})
+        telemetry_track(:error, duration, %{
+          status: status,
+          message: "JWKS fetching: invalid status"
+        })
+
         {:error, :status_not_200}
 
       {:error, :econnrefused} = error ->
-        :telemetry.execute(@log_error, %{duration: duration}, %{
+        telemetry_track(:error, duration, %{
           error: error,
           message: "JWKS fetching: could not connect (:econnrefused)"
         })
+
         {:error, :could_not_reach_jwks_url}
+
       {:keys, nil} ->
-        :telemetry.execute(@log_error, %{duration: duration}, %{
-          error: {:keys, :no_keys_on_response}, message: "JWKS fetching: no keys on response"
+        telemetry_track(:error, duration, %{
+          error: {:keys, :no_keys_on_response},
+          message: "JWKS fetching: no keys on response"
         })
+
         {:error, :no_keys_on_response}
 
       error ->
-        :telemetry.execute(@log_error, %{duration: duration}, %{error: error, message: "JWKS fetching: unkown error"})
-        error
-    end
-  end
+        telemetry_track(:error, duration, %{
+          error: error,
+          message: "JWKS fetching: unkown error"
+        })
 
-  defp call_fetch_signers(url, opts) do
-    with {:ok, resp} <- Tesla.get(new(opts), url),
-         {:status, 200} <- {:status, resp.status},
-         {:keys, keys} when not is_nil(keys) <- {:keys, resp.body["keys"]} do
-      {:ok, keys}
+        error
     end
   end
 
@@ -87,5 +101,13 @@ defmodule JokenJwks.HttpFetcher do
     ]
 
     Tesla.client(middleware, adapter)
+  end
+
+  defp telemetry_track(:success, duration, metadata) do
+    :telemetry.execute(@log_success, %{duration: duration}, metadata)
+  end
+
+  defp telemetry_track(:error, duration, metadata) do
+    :telemetry.execute(@log_error, %{duration: duration}, metadata)
   end
 end
