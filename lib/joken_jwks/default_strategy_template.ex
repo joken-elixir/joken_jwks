@@ -289,10 +289,27 @@ defmodule JokenJwks.DefaultStrategyTemplate do
         with {:kid, kid} when is_binary(kid) <- {:kid, key["kid"]},
              {:ok, alg} <- get_algorithm(key["alg"], opts[:explicit_alg]),
              {:ok, _signer} = res <- {:ok, Signer.create(alg, key)} do
+          :telemetry.execute(~w/joken_jwks parse_signer success/a, %{}, %{
+            message: "Signer successfully parsed."
+          })
+
           res
         else
-          {:kid, _} -> {:error, :kid_not_binary}
-          err -> err
+          {:kid, _} = err ->
+            :telemetry.execute(~w/joken_jwks parse_signer error/a, %{}, %{
+              error: err,
+              message: "Kid is not binary."
+            })
+
+            {:error, :kid_not_binary}
+
+          err ->
+            :telemetry.execute(~w/joken_jwks parse_signer error/a, %{}, %{
+              error: err,
+              message: "Unknown error."
+            })
+
+            err
         end
       rescue
         e ->
