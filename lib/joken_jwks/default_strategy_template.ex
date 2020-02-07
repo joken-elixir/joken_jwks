@@ -223,12 +223,14 @@ defmodule JokenJwks.DefaultStrategyTemplate do
         case EtsCache.check_state() do
           # no need to re-fetch
           0 ->
-            JokenJwks.log(:debug, opts[:log_level], "Re-fetching cache is not needed.")
+            :telemetry.execute(~w/joken_jwks ets_cache not_needed/a, %{}, %{message: "Re-fetching cache is not needed."})
             :ok
 
           # start re-fetching
           _counter ->
-            JokenJwks.log(:debug, opts[:log_level], "Re-fetching cache is needed and will start.")
+            :telemetry.execute(~w/joken_jwks ets_cache needed/a, %{}, %{
+              message: "Re-fetching cache is needed and will start."
+            })
             start_fetch_signers(opts[:jwks_url], opts)
         end
       end
@@ -243,21 +245,16 @@ defmodule JokenJwks.DefaultStrategyTemplate do
 
         with {:ok, keys} <- HttpFetcher.fetch_signers(url, opts),
              {:ok, signers} <- validate_and_parse_keys(keys, opts) do
-          JokenJwks.log(:debug, log_level, "Fetched signers. #{inspect(signers)}")
+          :telemetry.execute(~w/joken_jwks fetch_signers success/a, %{}, %{signers: signers, message: "Fetched signers."})
           EtsCache.put_signers(signers)
           EtsCache.set_status(:ok)
         else
           {:error, _reason} = err ->
-            JokenJwks.log(:error, log_level, "Failed to fetch signers. Reason: #{inspect(err)}")
+            :telemetry.execute(~w/joken_jwks fetch_signers error/a, %{}, %{error: err, message: "Failed to fetch signers."})
             EtsCache.set_status(:refresh)
 
           err ->
-            JokenJwks.log(
-              :error,
-              log_level,
-              "Unexpected error while fetching signers. Reason: #{inspect(err)}"
-            )
-
+            :telemetry.execute(~w/joken_jwks fetch_signers error/a, %{}, %{error: err, message: "Unexpected error while fetching signers."})
             EtsCache.set_status(:refresh)
         end
       end
@@ -283,16 +280,11 @@ defmodule JokenJwks.DefaultStrategyTemplate do
         end
       rescue
         e ->
-          JokenJwks.log(:error, opts[:log_level], """
-          Error while parsing a key entry fetched from the network.
-
-          This should be investigated by a human.
-
-          Key: #{inspect(key)}
-
-          Error: #{inspect(e)}
-          """)
-
+          :telemetry.execute(~w/joken_jwks parse_signer error/a, %{}, %{
+            error: e,
+            key: key,
+            message: "Error while parsing a key entry fetched from the network."
+          })
           {:error, :invalid_key_params}
       end
 
