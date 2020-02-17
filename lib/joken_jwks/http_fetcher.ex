@@ -30,11 +30,15 @@ defmodule JokenJwks.HttpFetcher do
     with {:ok, resp} <- result,
          {:status, 200} <- {:status, resp.status},
          {:keys, keys} when not is_nil(keys) <- {:keys, resp.body["keys"]} do
-      telemetry_track(:success, duration, %{keys: keys, message: "JWKS fetching: fetched keys"})
+      telemetry_track(@log_success, duration, %{
+        keys: keys,
+        message: "JWKS fetching: fetched keys"
+      })
+
       {:ok, keys}
     else
       {:status, status} when is_integer(status) and status >= 400 and status < 500 ->
-        telemetry_track(:error, duration, %{
+        telemetry_track(@log_error, duration, %{
           status: status,
           message: "JWKS fetching: client error"
         })
@@ -42,7 +46,7 @@ defmodule JokenJwks.HttpFetcher do
         {:error, :jwks_client_http_error}
 
       {:status, status} when is_integer(status) and status >= 500 ->
-        telemetry_track(:error, duration, %{
+        telemetry_track(@log_error, duration, %{
           status: status,
           message: "JWKS fetching: server error"
         })
@@ -50,7 +54,7 @@ defmodule JokenJwks.HttpFetcher do
         {:error, :jwks_server_http_error}
 
       {:status, status} ->
-        telemetry_track(:error, duration, %{
+        telemetry_track(@log_error, duration, %{
           status: status,
           message: "JWKS fetching: invalid status"
         })
@@ -58,7 +62,7 @@ defmodule JokenJwks.HttpFetcher do
         {:error, :status_not_200}
 
       {:error, :econnrefused} = error ->
-        telemetry_track(:error, duration, %{
+        telemetry_track(@log_error, duration, %{
           error: error,
           message: "JWKS fetching: could not connect (:econnrefused)"
         })
@@ -66,7 +70,7 @@ defmodule JokenJwks.HttpFetcher do
         {:error, :could_not_reach_jwks_url}
 
       {:keys, nil} ->
-        telemetry_track(:error, duration, %{
+        telemetry_track(@log_error, duration, %{
           error: {:keys, :no_keys_on_response},
           message: "JWKS fetching: no keys on response"
         })
@@ -74,7 +78,7 @@ defmodule JokenJwks.HttpFetcher do
         {:error, :no_keys_on_response}
 
       error ->
-        telemetry_track(:error, duration, %{
+        telemetry_track(@log_error, duration, %{
           error: error,
           message: "JWKS fetching: unkown error"
         })
@@ -103,11 +107,8 @@ defmodule JokenJwks.HttpFetcher do
     Tesla.client(middleware, adapter)
   end
 
-  defp telemetry_track(:success, duration, metadata) do
-    :telemetry.execute(@log_success, %{duration: duration}, metadata)
-  end
-
-  defp telemetry_track(:error, duration, metadata) do
-    :telemetry.execute(@log_error, %{duration: duration}, metadata)
+  defp telemetry_track(event, duration, metadata) do
+    metadata = Map.put(metadata, :module, __MODULE__)
+    :telemetry.execute(event, %{duration: duration}, metadata)
   end
 end

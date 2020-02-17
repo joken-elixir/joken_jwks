@@ -223,7 +223,7 @@ defmodule JokenJwks.DefaultStrategyTemplate do
         case EtsCache.check_state() do
           # no need to re-fetch
           0 ->
-            :telemetry.execute(~w/joken_jwks ets_cache not_needed/a, %{}, %{
+            telemetry_track(~w/joken_jwks ets_cache not_needed/a, %{
               message: "Re-fetching cache is not needed."
             })
 
@@ -231,7 +231,7 @@ defmodule JokenJwks.DefaultStrategyTemplate do
 
           # start re-fetching
           _counter ->
-            :telemetry.execute(~w/joken_jwks ets_cache needed/a, %{}, %{
+            telemetry_track(~w/joken_jwks ets_cache needed/a, %{
               message: "Re-fetching cache is needed and will start."
             })
 
@@ -249,7 +249,7 @@ defmodule JokenJwks.DefaultStrategyTemplate do
 
         with {:ok, keys} <- HttpFetcher.fetch_signers(url, opts),
              {:ok, signers} <- validate_and_parse_keys(keys, opts) do
-          :telemetry.execute(~w/joken_jwks fetch_signers success/a, %{}, %{
+          telemetry_track(~w/joken_jwks fetch_signers success/a, %{
             signers: signers,
             message: "Fetched signers."
           })
@@ -258,7 +258,7 @@ defmodule JokenJwks.DefaultStrategyTemplate do
           EtsCache.set_status(:ok)
         else
           {:error, _reason} = err ->
-            :telemetry.execute(~w/joken_jwks fetch_signers error/a, %{}, %{
+            telemetry_track(~w/joken_jwks fetch_signers error/a, %{
               error: err,
               message: "Failed to fetch signers."
             })
@@ -266,7 +266,7 @@ defmodule JokenJwks.DefaultStrategyTemplate do
             EtsCache.set_status(:refresh)
 
           err ->
-            :telemetry.execute(~w/joken_jwks fetch_signers error/a, %{}, %{
+            telemetry_track(~w/joken_jwks fetch_signers error/a, %{
               error: err,
               message: "Unexpected error while fetching signers."
             })
@@ -289,14 +289,14 @@ defmodule JokenJwks.DefaultStrategyTemplate do
         with {:kid, kid} when is_binary(kid) <- {:kid, key["kid"]},
              {:ok, alg} <- get_algorithm(key["alg"], opts[:explicit_alg]),
              {:ok, _signer} = res <- {:ok, Signer.create(alg, key)} do
-          :telemetry.execute(~w/joken_jwks parse_signer success/a, %{}, %{
+          telemetry_track(~w/joken_jwks parse_signer success/a, %{
             message: "Signer successfully parsed."
           })
 
           res
         else
           {:kid, _} = err ->
-            :telemetry.execute(~w/joken_jwks parse_signer error/a, %{}, %{
+            telemetry_track(~w/joken_jwks parse_signer error/a, %{
               error: err,
               message: "Kid is not binary."
             })
@@ -304,7 +304,7 @@ defmodule JokenJwks.DefaultStrategyTemplate do
             {:error, :kid_not_binary}
 
           err ->
-            :telemetry.execute(~w/joken_jwks parse_signer error/a, %{}, %{
+            telemetry_track(~w/joken_jwks parse_signer error/a, %{
               error: err,
               message: "Unknown error."
             })
@@ -313,7 +313,7 @@ defmodule JokenJwks.DefaultStrategyTemplate do
         end
       rescue
         e ->
-          :telemetry.execute(~w/joken_jwks parse_signer error/a, %{}, %{
+          telemetry_track(~w/joken_jwks parse_signer error/a, %{
             error: e,
             key: key,
             message: "Error while parsing a key entry fetched from the network."
@@ -330,6 +330,11 @@ defmodule JokenJwks.DefaultStrategyTemplate do
       defp get_algorithm(_, alg) when is_binary(alg), do: {:ok, alg}
       defp get_algorithm(alg, _) when is_binary(alg), do: {:ok, alg}
       defp get_algorithm(_, _), do: {:error, :bad_algorithm}
+
+      defp telemetry_track(event, metadata) do
+        metadata = Map.put(metadata, :module, __MODULE__)
+        :telemetry.execute(event, %{}, metadata)
+      end
     end
   end
 end
