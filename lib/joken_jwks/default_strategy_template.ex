@@ -167,7 +167,7 @@ defmodule JokenJwks.DefaultStrategyTemplate do
           |> Keyword.put(:log_level, log_level)
           |> Keyword.put(:jwks_url, url)
 
-        if Keyword.get(opts, :disable_logs, false) do
+        unless Keyword.get(opts, :disable_logs, false) do
           JokenJwks.Logger.attach_default_logger(log_level)
         end
 
