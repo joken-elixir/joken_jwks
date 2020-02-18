@@ -161,11 +161,14 @@ defmodule JokenJwks.DefaultStrategyTemplate do
         url = opts[:jwks_url] || raise "No url set for fetching JWKS!"
         EtsCache.new()
 
+        telemetry_prefix = Keyword.get(opts, :telemetry_prefix, __MODULE__)
+
         opts =
           opts
           |> Keyword.put(:time_interval, time_interval)
           |> Keyword.put(:log_level, log_level)
           |> Keyword.put(:jwks_url, url)
+          |> Keyword.put(:telemetry_prefix, telemetry_prefix)
 
         do_init(start?, first_fetch_sync, opts)
       end
