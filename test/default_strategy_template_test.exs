@@ -163,6 +163,50 @@ defmodule JokenJwks.DefaultStrategyTest do
     assert log =~ "Failed to fetch signers."
   end
 
+  test "set telemetry_prefix to default prefix" do
+    self = self()
+
+    :telemetry.attach(
+      "telemetry_test_default",
+      [JokenJwks.DefaultStrategyTest.TestToken.Strategy, :joken_jwks, :request],
+      fn name, measurements, metadata, _ ->
+        send(self, {:telemetry_event, name, measurements, metadata})
+      end,
+      nil
+    )
+
+    expect_call(fn %{url: "http://jwks/500"} -> {:ok, json(%{}, status: 500)} end)
+
+    TestToken.Strategy.start_link(jwks_url: "http://jwks/500")
+
+    assert_receive {:telemetry_event,
+                    [JokenJwks.DefaultStrategyTest.TestToken.Strategy, :joken_jwks, :request],
+                    %{request_time: _}, %{result: {:ok, %Tesla.Env{}}}}
+  end
+
+  test "can set telemetry_prefix to a custom prefix" do
+    self = self()
+
+    :telemetry.attach(
+      "telemetry_test_prefix",
+      [:my_custom_prefix, :joken_jwks, :request],
+      fn name, measurements, metadata, _ ->
+        send(self, {:telemetry_event, name, measurements, metadata})
+      end,
+      nil
+    )
+
+    expect_call(fn %{url: "http://jwks/500"} -> {:ok, json(%{}, status: 500)} end)
+
+    TestToken.Strategy.start_link(
+      jwks_url: "http://jwks/500",
+      telemetry_prefix: :my_custom_prefix
+    )
+
+    assert_receive {:telemetry_event, [:my_custom_prefix, :joken_jwks, :request],
+                    %{request_time: _}, %{result: {:ok, %Tesla.Env{}}}}
+  end
+
   @tag :capture_log
   test "can set options on callback init_opts/1" do
     defmodule InitOptsToken do
