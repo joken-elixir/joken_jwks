@@ -10,6 +10,7 @@ defmodule JokenJwks.HttpFetcher do
 
   See our tests for an example of mocking the HTTP fetching.
   """
+  alias JokenJwks.Middleware.Telemetry, as: JokenJwksTelemetry
   alias Tesla.Middleware, as: M
 
   @doc """
@@ -66,6 +67,7 @@ defmodule JokenJwks.HttpFetcher do
     middleware = [
       {M.JSON, decode_content_types: ["application/jwk-set+json"]},
       M.Logger,
+      {JokenJwksTelemetry, telemetry_prefix: opts[:telemetry_prefix]},
       {M.Retry,
        delay: opts[:http_delay_per_retry] || 500,
        max_retries: opts[:http_max_retries_per_fetch] || 10}
