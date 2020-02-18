@@ -1,8 +1,8 @@
 defmodule JokenJwks.Middleware.Telemetry do
   @moduledoc """
-  Middleware used on Tesla calls to intercept
-  request time and response content and
-  report to :telemetry library
+  Tesla Middleware for publishing telemetry events.
+
+  This middleware reports status and request time/response useful for monitoring the JWKS provider.
   """
 
   @behaviour Tesla.Middleware
