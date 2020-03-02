@@ -21,7 +21,7 @@ defmodule JokenJwks.HttpFetcher do
 
   We use `:hackney` as it validates certificates automatically.
   """
-  @spec fetch_signers(binary, map()) :: {:ok, list} | {:error, atom} | no_return()
+  @spec fetch_signers(binary, keyword()) :: {:ok, list} | {:error, atom} | no_return()
   def fetch_signers(url, opts) do
     log_level = opts[:log_level]
 
