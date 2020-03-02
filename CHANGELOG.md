@@ -6,6 +6,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.1] - 2020-03-02
+
+### Fixed
+
+- (@duzzifelipe) #13 fix: change fetch signers spec 
+
+## [1.3.0] - 2020-03-02
+
+### Added
+
+- (@duzzifelipe) #12 feat: telemetry middleware for tesla
+
 ## [1.2.0] - 2019-11-08
 
 ### Added

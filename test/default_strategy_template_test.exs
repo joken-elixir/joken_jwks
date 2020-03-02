@@ -163,6 +163,7 @@ defmodule JokenJwks.DefaultStrategyTest do
     assert log =~ "Failed to fetch signers."
   end
 
+  @tag :capture_log
   test "set telemetry_prefix to default prefix" do
     self = self()
 
@@ -184,6 +185,7 @@ defmodule JokenJwks.DefaultStrategyTest do
                     %{request_time: _}, %{result: {:ok, %Tesla.Env{}}}}
   end
 
+  @tag :capture_log
   test "can set telemetry_prefix to a custom prefix" do
     self = self()
 
