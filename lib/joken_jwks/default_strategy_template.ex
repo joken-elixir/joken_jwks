@@ -102,7 +102,7 @@ defmodule JokenJwks.DefaultStrategyTemplate do
 
         @doc "Starts ETS cache"
         def new do
-          :ets.new(__MODULE__, [
+          __MODULE__ = :ets.new(__MODULE__, [
             :set,
             :public,
             :named_table,
@@ -180,7 +180,7 @@ defmodule JokenJwks.DefaultStrategyTemplate do
             Task.start_link(__MODULE__, :poll, [opts])
 
           should_start ->
-            start_fetch_signers(opts[:jwks_url], opts)
+            {:ok, _} = start_fetch_signers(opts[:jwks_url], opts)
             Task.start_link(__MODULE__, :poll, [opts])
 
           true ->
@@ -213,7 +213,7 @@ defmodule JokenJwks.DefaultStrategyTemplate do
         receive do
         after
           interval ->
-            check_fetch(opts)
+            _ = check_fetch(opts)
             poll(opts)
         end
       end
