@@ -1,7 +1,7 @@
 defmodule JokenJwks.MixProject do
   use Mix.Project
 
-  @version "1.3.1"
+  @version "1.4.0"
 
   def project do
     [
@@ -39,18 +39,18 @@ defmodule JokenJwks.MixProject do
 
   defp deps do
     [
-      {:joken, "~> 2.0"},
-      {:jason, "~> 1.1"},
-      {:tesla, "~> 1.2"},
+      {:joken, "~> 2.3"},
+      {:jason, "~> 1.2"},
+      {:tesla, "~> 1.3"},
       {:hackney, "~> 1.16.0"},
-      {:telemetry, "~> 0.4.1"},
+      {:telemetry, "~> 0.4.2"},
 
       # docs
-      {:ex_doc, "~> 0.19", only: :dev, runtime: false},
+      {:ex_doc, "~> 0.22", only: :dev, runtime: false},
 
       # linters & coverage
-      {:credo, "~> 1.0", only: [:dev, :test], runtime: false},
-      {:excoveralls, "~> 0.10", only: :test},
+      {:credo, "~> 1.4", only: [:dev, :test], runtime: false},
+      {:excoveralls, "~> 0.13", only: :test},
 
       # tests
       {:mox, "~> 0.5", only: :test}
@@ -80,7 +80,7 @@ defmodule JokenJwks.MixProject do
       extra_section: "GUIDES",
       extras: [
         "guides/introduction.md",
-        {"CHANGELOG.md", [title: "Changelog"]}
+        {:"CHANGELOG.md", [title: "Changelog"]}
       ],
       main: "introduction"
     ]

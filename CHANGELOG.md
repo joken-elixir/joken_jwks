@@ -6,6 +6,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2020-09-27
+
+### Changed
+
+- (Emil Bostijancic) upgrades hackney dependency to 1.16.0 (#17)
+- Updated deps
+
+### Fixed
+
+- (@seancribbs) Address unmatched return warnings from Dialyzer (#16)
+
 ## [1.3.1] - 2020-03-02
 
 ### Fixed

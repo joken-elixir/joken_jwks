@@ -52,7 +52,7 @@ defmodule JokenJwks.DefaultStrategyTemplate do
   ### Example usage:
 
       defmodule JokenExample.MyStrategy do
-        use JokenJwks.DefaultMatchStrategy
+        use JokenJwks.DefaultStrategyTemplate
 
         def init_opts(opts) do
           url = # fetch url ...
@@ -102,13 +102,14 @@ defmodule JokenJwks.DefaultStrategyTemplate do
 
         @doc "Starts ETS cache"
         def new do
-          __MODULE__ = :ets.new(__MODULE__, [
-            :set,
-            :public,
-            :named_table,
-            read_concurrency: true,
-            write_concurrency: true
-          ])
+          __MODULE__ =
+            :ets.new(__MODULE__, [
+              :set,
+              :public,
+              :named_table,
+              read_concurrency: true,
+              write_concurrency: true
+            ])
 
           :ets.insert(__MODULE__, {:counter, 0})
         end
@@ -263,9 +264,8 @@ defmodule JokenJwks.DefaultStrategyTemplate do
 
       defp validate_and_parse_keys(keys, opts) when is_list(keys) do
         Enum.reduce_while(keys, {:ok, %{}}, fn key, {:ok, acc} ->
-          with {:ok, signer} <- parse_signer(key, opts) do
-            {:cont, {:ok, Map.put(acc, key["kid"], signer)}}
-          else
+          case parse_signer(key, opts) do
+            {:ok, signer} -> {:cont, {:ok, Map.put(acc, key["kid"], signer)}}
             e -> {:halt, e}
           end
         end)
