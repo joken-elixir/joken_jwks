@@ -40,9 +40,17 @@ defmodule JokenJwks.DefaultStrategyTest do
 
   @tag :capture_log
   test "fails if it can't fetch" do
-    expect_call(fn %{url: "http://jwks/500"} -> {:ok, %Tesla.Env{status: 500}} end)
+    parent = self()
+    ref = make_ref()
+
+    expect_call(fn %{url: "http://jwks/500"} ->
+      send(parent, {ref, :continue})
+      {:ok, %Tesla.Env{status: 500}}
+    end)
 
     TestToken.Strategy.start_link(jwks_url: "http://jwks/500")
+
+    assert_receive {^ref, :continue}
 
     token = TestToken.generate_and_sign!(%{}, TestUtils.create_signer_with_kid("id1"))
     assert {:error, :no_signers_fetched} == TestToken.verify_and_validate(token)
