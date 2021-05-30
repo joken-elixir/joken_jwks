@@ -1,19 +1,19 @@
 defmodule JokenJwks.DefaultStrategyTemplate do
   @moduledoc """
-  A `JokenJwks.SignerMatchStrategy` template that has a window of time for refreshing its 
+  A `JokenJwks.SignerMatchStrategy` template that has a window of time for refreshing its
   cache. This is a template and not a concrete implementation. You should `use` this module
   in order to use the default strategy.
 
-  This implementation is a task that should be supervised. It loops on a time window checking 
+  This implementation is a task that should be supervised. It loops on a time window checking
   whether it should re-fetch keys or not.
 
   Every time a bad kid is received it writes to an ets table a counter to 1. When the task
   loops, it polls for the counter value. If it is more than zero it starts re-fetching the
-  cache. Upon successful fetching, it zeros the counter once again. This way we avoid 
+  cache. Upon successful fetching, it zeros the counter once again. This way we avoid
   overloading the JWKS server.
 
   It will try to fetch signers when supervision starts it. This can be a sync or async operation
-  depending on the value of `first_fetch_sync`. It defaults to `false`. 
+  depending on the value of `first_fetch_sync`. It defaults to `false`.
 
   ## Usage
 
@@ -27,29 +27,42 @@ defmodule JokenJwks.DefaultStrategyTemplate do
 
   ## Configuration
 
-  Other than the `init_opts/1` callback you can pass options through `Mix.Config` and when starting 
+  Other than the `init_opts/1` callback you can pass options through `Mix.Config` and when starting
   the supervisor. The order of preference in least significant order is:
+
     - Per environment `Mix.Config`
     - Supervisor child options
     - `init_opts/1` callback
 
-  The only mandatory option is `jwks_url` (`binary()`) that is, usually, a runtime parameter like a system
-  environment variable. It is recommended to use the `init_opts/1` callback.
+  The only mandatory option is `jwks_url` (`binary()`) that is, usually, a
+  runtime parameter like a system environment variable. It is recommended to
+  use the `init_opts/1` callback.
 
   Other options are:
 
-    - `time_interval` (`integer()` - default 60_000 (1 minute)): time interval for polling if it is needed to
-    re-fetch the keys;
-    - `log_level` (`:none | :debug | :info | :warn | :error` - default `:debug`): the level of log to use for
-    events in the strategy like HTTP errors and so on. It is advised not to turn off logging in production;
-    - `should_start` (`boolean()` - default true): whether to start the supervised polling task. For tests, this
-    should be false;
-    - `first_fetch_sync` (`boolean()` - default false): whether to fetch the first time synchronously or async;
-    - `explicit_alg` (`String.t()`): the JWS algorithm for use with the key. Overrides the one in the JWK;
-    - `http_max_retries_per_fetch` (`pos_integer()` - default 10): passed to `Tesla.Middleware.Retry`;
-    - `http_delay_per_retry` (`pos_integer()` - default 500): passed to `Tesla.Middleware.Retry`.
+    - `time_interval` (`integer()` - default 60_000 (1 minute)): time interval
+      for polling if it is needed to re-fetch the keys
 
-  ### Example usage:
+    - `log_level` (`:none | :debug | :info | :warn | :error` - default
+      `:debug`): the level of log to use for events in the strategy like HTTP
+      errors and so on. It is advised not to turn off logging in production
+
+    - `should_start` (`boolean()` - default `true`): whether to start the
+      supervised polling task. For tests, this should be false
+
+    - `first_fetch_sync` (`boolean()` - default `false`): whether to fetch the
+      first time synchronously or async
+
+    - `explicit_alg` (`String.t()`): the JWS algorithm for use with the key.
+      Overrides the one in the JWK
+
+    - `http_max_retries_per_fetch` (`pos_integer()` - default `10`): passed to
+      `Tesla.Middleware.Retry`
+
+    - `http_delay_per_retry` (`pos_integer()` - default `500`): passed to
+      `Tesla.Middleware.Retry`
+
+  ### Examples
 
       defmodule JokenExample.MyStrategy do
         use JokenJwks.DefaultStrategyTemplate
@@ -64,7 +77,7 @@ defmodule JokenJwks.DefaultStrategyTemplate do
         @doc false
         def start(_type, _args) do
           import Supervisor.Spec, warn: false
-      
+
           children = [
             {MyStrategy, time_interval: 2_000}
           ]
@@ -82,6 +95,7 @@ defmodule JokenJwks.DefaultStrategyTemplate do
         add_hook(JokenJwks, strategy: MyStrategy)
         # rest of your token config
       end
+
   """
 
   defmacro __using__(_opts) do
