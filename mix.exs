@@ -39,21 +39,21 @@ defmodule JokenJwks.MixProject do
 
   defp deps do
     [
-      {:joken, "~> 2.3"},
+      {:joken, "~> 2.4"},
       {:jason, "~> 1.2"},
-      {:tesla, "~> 1.3"},
+      {:tesla, "~> 1.4"},
       {:hackney, "~> 1.17.0"},
-      {:telemetry, "~> 0.4.2"},
+      {:telemetry, "~> 0.4 or ~> 1.0"},
 
       # docs
       {:ex_doc, "~> 0.22", only: :dev, runtime: false},
 
       # linters & coverage
       {:credo, "~> 1.4", only: [:dev, :test], runtime: false},
-      {:excoveralls, "~> 0.13", only: :test},
+      {:excoveralls, "~> 0.14", only: :test},
 
       # tests
-      {:mox, "~> 0.5", only: :test}
+      {:mox, "~> 1.0", only: :test}
     ]
   end
 
