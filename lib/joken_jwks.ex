@@ -39,7 +39,7 @@ defmodule JokenJwks do
   is a behaviour that can be customized as the "fetching strategy", that is: when to fetch and re-fetch
   keys. `JokenJwks` has a default strategy that tries to be smart and cover most use cases by default. 
   It combines a time based state machine to avoid overflowing the system with re-fetching keys. If  that
-  is not a good option for your use case, it can still be configured. Please, see 
+  is not a good option for your use case, it can still be configured. Please see 
   `JokenJwks.SignerMatchStrategy` or `JokenJwks.DefaultStrategyTemplate` docs for more information.
   """
 
