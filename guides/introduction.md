@@ -31,7 +31,7 @@ The only occasion where this will not call the behaviour is if the given token i
 
 A very naive approach of implementing the callback would be to fetch signers upon startup and then re-fetching everytime a token kid does not match with the loaded cache.
 
-This could potentially open an attack vector for massively hitting the authentication server. Of course, the auth server JWKS url is public and an attacker could just hit it directly, but it is wise to have some deffense machanism in place when developing your strategy.
+This could potentially open an attack vector for massively hitting the authentication server. Of course, the auth server JWKS url is public and an attacker could just hit it directly, but it is wise to have some defense mechanism in place when developing your strategy.
 
 ## Default Strategy Template
 
