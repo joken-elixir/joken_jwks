@@ -2,7 +2,7 @@ defmodule JokenJwks.MixProject do
   use Mix.Project
 
   @source_url "https://github.com/joken-elixir/joken_jwks"
-  @version "1.4.1"
+  @version "1.5.0"
 
   def project do
     [
@@ -37,21 +37,21 @@ defmodule JokenJwks.MixProject do
 
   defp deps do
     [
-      {:joken, "~> 2.3"},
+      {:joken, "~> 2.4"},
       {:jason, "~> 1.2"},
-      {:tesla, "~> 1.3"},
-      {:hackney, "~> 1.17.0"},
+      {:tesla, "~> 1.4"},
+      {:hackney, "~> 1.17.4"},
       {:telemetry, "~> 0.4.2 or ~> 1.0"},
 
       # docs
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
 
       # linters & coverage
-      {:credo, "~> 1.4", only: [:dev, :test], runtime: false},
-      {:excoveralls, "~> 0.13", only: :test},
+      {:credo, "~> 1.5", only: [:dev, :test], runtime: false},
+      {:excoveralls, "~> 0.14", only: :test},
 
       # tests
-      {:mox, "~> 0.5", only: :test}
+      {:mox, "~> 1.0", only: :test}
     ]
   end
 
@@ -72,7 +72,7 @@ defmodule JokenJwks.MixProject do
     [
       extras: [
         "CHANGELOG.md",
-        "LICENSE": [title: "License"],
+        LICENSE: [title: "License"],
         "README.md": [title: "Overview"]
       ],
       source_url: @source_url,

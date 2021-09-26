@@ -11,7 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Use hackney v1.17.0
+- Use hackney v1.17.4
+- Documentation re-organization (#22 thanks to @kianmeng)
+- Conditional telemetry version (#23 thanks to @J3RN)
 
 ## [1.4.0] - 2020-09-27
 
