@@ -13,9 +13,9 @@ defmodule JokenJwks do
 
       defmodule MyToken do
         use Joken.Config
-        
+
         add_hook(JokenJwks, strategy: MyFetchingStrategy)
-        
+
         # rest of your token config
       end
 
@@ -29,7 +29,7 @@ defmodule JokenJwks do
   process of issuing a new key that in time will replace the older key. This is security hygiene
   and should/might be a regular process.
 
-  Sometimes it is important to block keys because they got leaked or for any other reason. 
+  Sometimes it is important to block keys because they got leaked or for any other reason.
 
   Other times you simply don't control the authentication server and can't ensure the keys won't
   change. This is the most common scenario for this hook.
@@ -37,9 +37,9 @@ defmodule JokenJwks do
   In these cases (and some others) it is important to have a cache invalidation strategy: all your
   cached keys should be refreshed. Since the best strategy might differ for each use case, there
   is a behaviour that can be customized as the "fetching strategy", that is: when to fetch and re-fetch
-  keys. `JokenJwks` has a default strategy that tries to be smart and cover most use cases by default. 
+  keys. `JokenJwks` has a default strategy that tries to be smart and cover most use cases by default.
   It combines a time based state machine to avoid overflowing the system with re-fetching keys. If  that
-  is not a good option for your use case, it can still be configured. Please, see 
+  is not a good option for your use case, it can still be configured. Please, see
   `JokenJwks.SignerMatchStrategy` or `JokenJwks.DefaultStrategyTemplate` docs for more information.
   """
 
