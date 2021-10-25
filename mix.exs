@@ -40,7 +40,7 @@ defmodule JokenJwks.MixProject do
       {:joken, "~> 2.4"},
       {:jason, "~> 1.2"},
       {:tesla, "~> 1.4"},
-      {:hackney, "~> 1.17.4 or ~> 1.18"},
+      {:hackney, "~> 1.17.4 or ~> 1.18.0"},
       {:telemetry, "~> 0.4.2 or ~> 1.0"},
 
       # docs
