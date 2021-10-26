@@ -283,6 +283,7 @@ defmodule JokenJwks.DefaultStrategyTemplate do
         Enum.reduce_while(keys, {:ok, %{}}, fn key, {:ok, acc} ->
           case parse_signer(key, opts) do
             {:ok, signer} -> {:cont, {:ok, Map.put(acc, key["kid"], signer)}}
+            # We don't support "enc" keys but should not break otherwise
             {:error, :not_signing_key} -> {:cont, {:ok, acc}}
             e -> {:halt, e}
           end
@@ -297,7 +298,6 @@ defmodule JokenJwks.DefaultStrategyTemplate do
              {:ok, _signer} = res <- {:ok, Signer.create(alg, key)} do
           res
         else
-          # We don't support "enc" keys but should not break otherwise
           {:use, false} -> {:error, :not_signing_key}
           {:kid, _} -> {:error, :kid_not_binary}
           err -> err
