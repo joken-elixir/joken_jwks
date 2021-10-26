@@ -20,8 +20,8 @@ defmodule JokenJwks.DefaultStrategyTemplate do
   This strategy tries to be smart about keys it can USE to verify signatures. For example, if the
   provider has encryption keys, it will skip those (any key with field "use" with value "enc").
 
-  Also, if the running BEAM instance has no support for a given signature algorithm (future ones
-  possible not implemented on the given OpenSSL + BEAM + JOSE set) it will also skip.
+  Also, if the running BEAM instance has no support for a given signature algorithm (possibly not implemented 
+  on the given OpenSSL + BEAM + JOSE combination) this implementation will also skip those.
 
   Be sure to check your logs as if there are NO signers available it will log a warning telling you
   that.
