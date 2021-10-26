@@ -18,7 +18,7 @@ Please see our [documentation](https://hexdocs.pm/joken_jwks/) for usage.
 ```elixir
 def deps do
   [
-    {:joken_jwks, "~> 1.5.0"}
+    {:joken_jwks, "~> 1.6.0"}
   ]
 end
 ```
@@ -67,7 +67,8 @@ This could potentially open an attack vector for massively hitting the authentic
 Since the JWKS specification is just that, a specification, many servers might disagree on how to implement this. For example, Google specifies the "alg" claim on every key instance. Microsoft does not. Therefore we assume some interpretations:
 
 - Every key must have a "kid" (even if there is only one key)
-- We don't currently check for the "use" claim and so we might hit an encryption key (which will be parsed as well)
+- We skip keys that are used for encryption (which have a field "use" with value "enc")
+- We skip keys that have JWE algs or unsupported JWS algorithms
 - If no "alg" claim is provided, then the user must pass the option "explicit_alg"
 
 That's it for now :)

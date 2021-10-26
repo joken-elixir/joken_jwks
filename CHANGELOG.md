@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.0] - 2021-10-26
+
+This release brings a more resilient parsing of JWKSets. If the provider has encryption keys along with signing keys, this will skip them.
+
+Also, since JWS spec has some algorithms that are not natively available to all installations (Edwards curves for example) we will also skip those. This aims to avoid a server not loading other keys if one is not supported.
+
+### Changed
+
+- Update Hackney spec to include 1.18 versions (thanks to @J3RN)
+- Add patch level to 1.18 spec (thanks to @J3RN)
+- More resilient parsing of JWKs (#28)
+
 ## [1.5.0] - 2020-12-23
 
 ### Changed

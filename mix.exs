@@ -2,7 +2,7 @@ defmodule JokenJwks.MixProject do
   use Mix.Project
 
   @source_url "https://github.com/joken-elixir/joken_jwks"
-  @version "1.5.0"
+  @version "1.6.0"
 
   def project do
     [

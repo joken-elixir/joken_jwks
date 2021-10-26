@@ -15,6 +15,19 @@ defmodule JokenJwks.DefaultStrategyTemplate do
   It will try to fetch signers when supervision starts it. This can be a sync or async operation
   depending on the value of `first_fetch_sync`. It defaults to `false`.
 
+  ## Resiliency
+
+  This strategy tries to be smart about keys it can USE to verify signatures. For example, if the
+  provider has encryption keys, it will skip those (any key with field "use" with value "enc").
+
+  Also, if the running BEAM instance has no support for a given signature algorithm (future ones
+  possible not implemented on the given OpenSSL + BEAM + JOSE set) it will also skip.
+
+  Be sure to check your logs as if there are NO signers available it will log a warning telling you
+  that.
+
+  For debugging purpouses, calling the function `fetch_signers/2` directly might be helpful.  
+
   ## Usage
 
   This strategy must be under your apps' supervision tree. It must be explicitly used under a
