@@ -11,8 +11,6 @@ defmodule JokenJwks.DefaultStrategyTest do
   setup :set_mox_global
   setup :verify_on_exit!
 
-  @moduletag :capture_log
-
   test "can fetch keys" do
     setup_jwks()
 
