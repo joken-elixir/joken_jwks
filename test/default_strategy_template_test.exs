@@ -296,10 +296,14 @@ defmodule JokenJwks.DefaultStrategyTest do
        })}
     end)
 
-    start_supervised!({TestToken.Strategy, jwks_url: "http://jwks", first_fetch_sync: true})
+    assert capture_log(fn ->
+             start_supervised!(
+               {TestToken.Strategy, jwks_url: "http://jwks", first_fetch_sync: true}
+             )
+           end) =~ "NO VALID SIGNERS FOUND!"
 
     # use is ignored
-    assert length(TestToken.Strategy.EtsCache.get_signers()) == 0
+    assert Enum.count(TestToken.Strategy.EtsCache.get_signers()[:signers]) == 0
   end
 
   def setup_jwks(time_interval \\ 1_000) do

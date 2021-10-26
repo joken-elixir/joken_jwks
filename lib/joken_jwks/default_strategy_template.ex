@@ -261,6 +261,11 @@ defmodule JokenJwks.DefaultStrategyTemplate do
         with {:ok, keys} <- HttpFetcher.fetch_signers(url, opts),
              {:ok, signers} <- validate_and_parse_keys(keys, opts) do
           JokenJwks.log(:debug, log_level, "Fetched signers. #{inspect(signers)}")
+
+          if signers == %{} do
+            JokenJwks.log(:warn, log_level, "NO VALID SIGNERS FOUND!")
+          end
+
           EtsCache.put_signers(signers)
           EtsCache.set_status(:ok)
         else
@@ -285,6 +290,8 @@ defmodule JokenJwks.DefaultStrategyTemplate do
             {:ok, signer} -> {:cont, {:ok, Map.put(acc, key["kid"], signer)}}
             # We don't support "enc" keys but should not break otherwise
             {:error, :not_signing_key} -> {:cont, {:ok, acc}}
+            # We skip unknown JWS algorithms or JWEs
+            {:error, :not_signing_alg} -> {:cont, {:ok, acc}}
             e -> {:halt, e}
           end
         end)
@@ -300,6 +307,7 @@ defmodule JokenJwks.DefaultStrategyTemplate do
         else
           {:use, false} -> {:error, :not_signing_key}
           {:kid, _} -> {:error, :kid_not_binary}
+          {:jws_alg?, false} -> {:error, :not_signing_alg}
           err -> err
         end
       rescue
