@@ -178,12 +178,15 @@ defmodule JokenJwks.DefaultStrategyTemplate do
 
         telemetry_prefix = Keyword.get(opts, :telemetry_prefix, __MODULE__)
 
+        [_, _, {:jws, {:alg, algs}}] = JOSE.JWA.supports()
+
         opts =
           opts
           |> Keyword.put(:time_interval, time_interval)
           |> Keyword.put(:log_level, log_level)
           |> Keyword.put(:jwks_url, url)
           |> Keyword.put(:telemetry_prefix, telemetry_prefix)
+          |> Keyword.put(:jws_supported_algs, algs)
 
         do_init(start?, first_fetch_sync, opts)
       end
@@ -258,6 +261,11 @@ defmodule JokenJwks.DefaultStrategyTemplate do
         with {:ok, keys} <- HttpFetcher.fetch_signers(url, opts),
              {:ok, signers} <- validate_and_parse_keys(keys, opts) do
           JokenJwks.log(:debug, log_level, "Fetched signers. #{inspect(signers)}")
+
+          if signers == %{} do
+            JokenJwks.log(:warn, log_level, "NO VALID SIGNERS FOUND!")
+          end
+
           EtsCache.put_signers(signers)
           EtsCache.set_status(:ok)
         else
@@ -280,18 +288,26 @@ defmodule JokenJwks.DefaultStrategyTemplate do
         Enum.reduce_while(keys, {:ok, %{}}, fn key, {:ok, acc} ->
           case parse_signer(key, opts) do
             {:ok, signer} -> {:cont, {:ok, Map.put(acc, key["kid"], signer)}}
+            # We don't support "enc" keys but should not break otherwise
+            {:error, :not_signing_key} -> {:cont, {:ok, acc}}
+            # We skip unknown JWS algorithms or JWEs
+            {:error, :not_signing_alg} -> {:cont, {:ok, acc}}
             e -> {:halt, e}
           end
         end)
       end
 
       defp parse_signer(key, opts) do
-        with {:kid, kid} when is_binary(kid) <- {:kid, key["kid"]},
+        with {:use, true} <- {:use, key["use"] != "enc"},
+             {:kid, kid} when is_binary(kid) <- {:kid, key["kid"]},
              {:ok, alg} <- get_algorithm(key["alg"], opts[:explicit_alg]),
+             {:jws_alg?, true} <- {:jws_alg?, alg in opts[:jws_supported_algs]},
              {:ok, _signer} = res <- {:ok, Signer.create(alg, key)} do
           res
         else
+          {:use, false} -> {:error, :not_signing_key}
           {:kid, _} -> {:error, :kid_not_binary}
+          {:jws_alg?, false} -> {:error, :not_signing_alg}
           err -> err
         end
       rescue
