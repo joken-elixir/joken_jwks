@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 This release brings a more resilient parsing of JWK sets. If the provider has encryption keys along with signing keys, we skip them.
 
-Also, since JWS spec has some algorithms that are not natively available to all installations (Edwards curves for example) we will also skip those. This aims to avoid a server not loading other keys if one is not supported.
+Also, since JWS specification has some algorithms that are not natively available to all installations (Edwards curves for example) we also skip those. This aims to avoid a server not loading other keys if one is not supported.
 
 ### Changed
 
