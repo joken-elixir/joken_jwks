@@ -1,4 +1,4 @@
-:ok = Application.ensure_all_started(:telemetry)
+:ok = Application.ensure_started(:telemetry)
 
 defmodule JokenJwks.DefaultStrategyTest do
   use ExUnit.Case, async: false
