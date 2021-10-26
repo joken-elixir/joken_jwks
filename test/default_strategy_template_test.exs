@@ -1,28 +1,18 @@
+Application.ensure_all_started(:telemetry)
+
 defmodule JokenJwks.DefaultStrategyTest do
   use ExUnit.Case, async: false
 
   import ExUnit.CaptureLog
   import Mox
   import Tesla.Mock, only: [json: 1, json: 2]
-  alias Joken.Signer
   alias JokenJwks.TestUtils
 
   setup :set_mox_global
   setup :verify_on_exit!
 
-  defmodule TestToken do
-    use Joken.Config
+  @moduletag :capture_log
 
-    defmodule Strategy do
-      use JokenJwks.DefaultStrategyTemplate
-    end
-
-    add_hook(JokenJwks, strategy: Strategy)
-
-    def token_config, do: %{}
-  end
-
-  @tag :capture_log
   test "can fetch keys" do
     setup_jwks()
 
@@ -30,7 +20,6 @@ defmodule JokenJwks.DefaultStrategyTest do
     assert {:ok, %{}} == TestToken.verify_and_validate(token)
   end
 
-  @tag :capture_log
   test "fails if kid does not match" do
     setup_jwks()
 
@@ -38,7 +27,6 @@ defmodule JokenJwks.DefaultStrategyTest do
     assert {:error, :kid_does_not_match} == TestToken.verify_and_validate(token)
   end
 
-  @tag :capture_log
   test "fails if it can't fetch" do
     parent = self()
     ref = make_ref()
@@ -48,7 +36,7 @@ defmodule JokenJwks.DefaultStrategyTest do
       {:ok, %Tesla.Env{status: 500}}
     end)
 
-    TestToken.Strategy.start_link(jwks_url: "http://jwks/500")
+    start_supervised!({TestToken.Strategy, jwks_url: "http://jwks/500"})
 
     assert_receive {^ref, :continue}
 
@@ -56,14 +44,12 @@ defmodule JokenJwks.DefaultStrategyTest do
     assert {:error, :no_signers_fetched} == TestToken.verify_and_validate(token)
   end
 
-  @tag :capture_log
   test "fails if no option was provided" do
     assert_raise(RuntimeError, ~r/No url set for fetching JWKS!/, fn ->
-      TestToken.Strategy.start_link([])
+      start_supervised!({TestToken.Strategy, []})
     end)
   end
 
-  @tag :capture_log
   test "can configure window of time for searching for new signers" do
     setup_jwks(500)
 
@@ -85,7 +71,6 @@ defmodule JokenJwks.DefaultStrategyTest do
     assert {:ok, %{}} == TestToken.verify_and_validate(token)
   end
 
-  @tag :capture_log
   test "fetches only one per window of time invariably" do
     setup_jwks(2_000)
 
@@ -110,13 +95,12 @@ defmodule JokenJwks.DefaultStrategyTest do
     assert {:ok, %{}} == TestToken.verify_and_validate(token)
   end
 
-  @tag :capture_log
   test "fails if no signers are fetched" do
     expect_call(fn %{url: "http://jwks"} ->
       {:ok, json(%{"keys" => [TestUtils.build_key("id1")]}, status: 500)}
     end)
 
-    TestToken.Strategy.start_link(jwks_url: "http://jwks")
+    start_supervised!({TestToken.Strategy, jwks_url: "http://jwks"})
     :timer.sleep(100)
 
     token = TestToken.generate_and_sign!(%{}, TestUtils.create_signer_with_kid("id3"))
@@ -126,7 +110,7 @@ defmodule JokenJwks.DefaultStrategyTest do
   test "can skip start polling and fetching" do
     # expect 0 invocations
     expect_call(0, fn _, _opts -> :ok end)
-    TestToken.Strategy.start_link(jwks_url: "http://jwks", should_start: false)
+    start_supervised!({TestToken.Strategy, jwks_url: "http://jwks", should_start: false})
     assert TestToken.Strategy.EtsCache.check_state() == 0
   end
 
@@ -137,7 +121,7 @@ defmodule JokenJwks.DefaultStrategyTest do
 
     log =
       capture_log(fn ->
-        TestToken.Strategy.start_link(jwks_url: "http://jwks", log_level: :none)
+        start_supervised!({TestToken.Strategy, jwks_url: "http://jwks", log_level: :none})
         :timer.sleep(100)
       end)
 
@@ -151,7 +135,7 @@ defmodule JokenJwks.DefaultStrategyTest do
 
     log =
       capture_log(fn ->
-        TestToken.Strategy.start_link(jwks_url: "http://jwks", log_level: :error)
+        start_supervised!({TestToken.Strategy, jwks_url: "http://jwks", log_level: :error})
         :timer.sleep(100)
       end)
 
@@ -164,20 +148,21 @@ defmodule JokenJwks.DefaultStrategyTest do
 
     log =
       capture_log(fn ->
-        TestToken.Strategy.start_link(jwks_url: "http://jwks/500", log_level: :error)
+        start_supervised!({TestToken.Strategy, jwks_url: "http://jwks/500", log_level: :error})
         :timer.sleep(100)
       end)
 
     assert log =~ "Failed to fetch signers."
   end
 
-  @tag :capture_log
   test "set telemetry_prefix to default prefix" do
     self = self()
 
+    on_exit(fn -> :telemetry.detach("telemetry-test-default") end)
+
     :telemetry.attach(
-      "telemetry_test_default",
-      [JokenJwks.DefaultStrategyTest.TestToken.Strategy, :joken_jwks, :request],
+      "telemetry-test-default",
+      [TestToken.Strategy, :joken_jwks, :request],
       fn name, measurements, metadata, _ ->
         send(self, {:telemetry_event, name, measurements, metadata})
       end,
@@ -186,14 +171,12 @@ defmodule JokenJwks.DefaultStrategyTest do
 
     expect_call(fn %{url: "http://jwks/500"} -> {:ok, json(%{}, status: 500)} end)
 
-    TestToken.Strategy.start_link(jwks_url: "http://jwks/500")
+    start_supervised!({TestToken.Strategy, [jwks_url: "http://jwks/500"]})
 
-    assert_receive {:telemetry_event,
-                    [JokenJwks.DefaultStrategyTest.TestToken.Strategy, :joken_jwks, :request],
+    assert_receive {:telemetry_event, [TestToken.Strategy, :joken_jwks, :request],
                     %{request_time: _}, %{result: {:ok, %Tesla.Env{}}}}
   end
 
-  @tag :capture_log
   test "can set telemetry_prefix to a custom prefix" do
     self = self()
 
@@ -208,48 +191,25 @@ defmodule JokenJwks.DefaultStrategyTest do
 
     expect_call(fn %{url: "http://jwks/500"} -> {:ok, json(%{}, status: 500)} end)
 
-    TestToken.Strategy.start_link(
-      jwks_url: "http://jwks/500",
-      telemetry_prefix: :my_custom_prefix
+    start_supervised!(
+      {TestToken.Strategy, jwks_url: "http://jwks/500", telemetry_prefix: :my_custom_prefix}
     )
 
     assert_receive {:telemetry_event, [:my_custom_prefix, :joken_jwks, :request],
                     %{request_time: _}, %{result: {:ok, %Tesla.Env{}}}}
   end
 
-  @tag :capture_log
   test "can set options on callback init_opts/1" do
-    defmodule InitOptsToken do
-      use Joken.Config
-
-      defmodule Strategy do
-        use JokenJwks.DefaultStrategyTemplate
-
-        @doc false
-        def init_opts(other_opts) do
-          assert other_opts == [log_level: :none]
-
-          # override and add option
-          [log_level: :debug, jwks_url: "http://jwks"]
-        end
-      end
-
-      add_hook(JokenJwks, strategy: Strategy)
-
-      def token_config, do: %{}
-    end
-
     expect_call(fn %{url: "http://jwks"} ->
       {:ok, json(%{"keys" => [TestUtils.build_key("id1"), TestUtils.build_key("id2")]})}
     end)
 
-    InitOptsToken.Strategy.start_link(log_level: :none)
+    start_supervised!({InitOptsToken.Strategy, log_level: :none})
     :timer.sleep(100)
 
     assert InitOptsToken.Strategy.EtsCache.get_signers()[:signers] |> Map.keys() == ["id1", "id2"]
   end
 
-  @tag :capture_log
   test "can override alg" do
     expect_call(fn %{url: "http://jwks"} ->
       assert key = "id1" |> TestUtils.build_key() |> Map.put("alg", "RS256")
@@ -257,14 +217,13 @@ defmodule JokenJwks.DefaultStrategyTest do
       {:ok, json(%{"keys" => [key]})}
     end)
 
-    TestToken.Strategy.start_link(jwks_url: "http://jwks", explicit_alg: "RS384")
+    start_supervised!({TestToken.Strategy, jwks_url: "http://jwks", explicit_alg: "RS384"})
     :timer.sleep(100)
 
     token = TestToken.generate_and_sign!(%{}, TestUtils.create_signer_with_kid("id1", "RS384"))
     assert {:ok, %{}} == TestToken.verify_and_validate(token)
   end
 
-  @tag :capture_log
   test "can parse key without alg with option explicit_alg" do
     expect_call(fn %{url: "http://jwks"} ->
       assert key = "id1" |> TestUtils.build_key() |> Map.delete("alg")
@@ -272,20 +231,19 @@ defmodule JokenJwks.DefaultStrategyTest do
       {:ok, json(%{"keys" => [key]})}
     end)
 
-    TestToken.Strategy.start_link(jwks_url: "http://jwks", explicit_alg: "RS384")
+    start_supervised!({TestToken.Strategy, jwks_url: "http://jwks", explicit_alg: "RS384"})
     :timer.sleep(100)
 
     token = TestToken.generate_and_sign!(%{}, TestUtils.create_signer_with_kid("id1", "RS384"))
     assert {:ok, %{}} == TestToken.verify_and_validate(token)
   end
 
-  @tag :capture_log
   test "can start first fetch synchronously" do
     expect_call(fn %{url: "http://jwks"} ->
       {:ok, json(%{"keys" => [TestUtils.build_key("id1")]})}
     end)
 
-    TestToken.Strategy.start_link(jwks_url: "http://jwks", first_fetch_sync: true)
+    start_supervised!({TestToken.Strategy, jwks_url: "http://jwks", first_fetch_sync: true})
 
     # no sleep here
 
@@ -293,15 +251,15 @@ defmodule JokenJwks.DefaultStrategyTest do
     assert {:ok, %{}} == TestToken.verify_and_validate(token)
   end
 
-  @tag :capture_log
   test "even if first fetch sync fails will try to poll" do
     expect_call(2, fn %{url: "http://jwks"} -> {:error, :internal_error} end)
 
-    TestToken.Strategy.start_link(
-      jwks_url: "http://jwks",
-      first_fetch_sync: true,
-      time_interval: 100,
-      http_max_retries_per_fetch: 1
+    start_supervised!(
+      {TestToken.Strategy,
+       jwks_url: "http://jwks",
+       first_fetch_sync: true,
+       time_interval: 100,
+       http_max_retries_per_fetch: 1}
     )
 
     # We expect 3 calls in the timespan of 150 milliseconds:
@@ -310,12 +268,48 @@ defmodule JokenJwks.DefaultStrategyTest do
     :timer.sleep(120)
   end
 
+  test "ignores keys with `use` as `enc`" do
+    expect_call(fn %{url: "http://jwks"} ->
+      {:ok,
+       json(%{
+         "keys" => [
+           TestUtils.build_key("id1"),
+           Map.merge(TestUtils.build_key("id2"), %{"use" => "enc", "alg" => "RSA-OAEP-256"})
+         ]
+       })}
+    end)
+
+    start_supervised!({TestToken.Strategy, jwks_url: "http://jwks", first_fetch_sync: true})
+
+    # use is ignored
+    assert length(TestToken.Strategy.EtsCache.get_signers()) == 1
+
+    token = TestToken.generate_and_sign!(%{}, TestUtils.create_signer_with_kid("id1"))
+    assert {:ok, %{}} == TestToken.verify_and_validate(token)
+  end
+
+  test "ignores keys algorithms that are not JWS" do
+    expect_call(fn %{url: "http://jwks"} ->
+      {:ok,
+       json(%{
+         "keys" => [
+           Map.merge(TestUtils.build_key("id1"), %{"use" => "sig", "alg" => "RSA-OAEP-256"})
+         ]
+       })}
+    end)
+
+    start_supervised!({TestToken.Strategy, jwks_url: "http://jwks", first_fetch_sync: true})
+
+    # use is ignored
+    assert length(TestToken.Strategy.EtsCache.get_signers()) == 0
+  end
+
   def setup_jwks(time_interval \\ 1_000) do
     expect_call(fn %{url: "http://jwks"} ->
       {:ok, json(%{"keys" => [TestUtils.build_key("id1"), TestUtils.build_key("id2")]})}
     end)
 
-    TestToken.Strategy.start_link(jwks_url: "http://jwks", time_interval: time_interval)
+    start_supervised!({TestToken.Strategy, jwks_url: "http://jwks", time_interval: time_interval})
     :timer.sleep(100)
   end
 
