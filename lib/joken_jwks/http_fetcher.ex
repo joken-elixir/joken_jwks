@@ -50,7 +50,7 @@ defmodule JokenJwks.HttpFetcher do
         {:error, :no_keys_on_response}
 
       error ->
-        JokenJwks.log(:debug, log_level, "JWKS fetching: unkown error #{inspect(error)}")
+        JokenJwks.log(:debug, log_level, "JWKS fetching: unknown error #{inspect(error)}")
         error
     end
   end
