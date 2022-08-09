@@ -75,9 +75,6 @@ defmodule JokenJwks.DefaultStrategyTemplate do
     - `http_delay_per_retry` (`pos_integer()` - default `500`): passed to
       `Tesla.Middleware.Retry`
 
-    - `name`: name of the GenServer. Default is __MODULE__.
-      It can be any acceptable values in [Name registration section](https://hexdocs.pm/elixir/1.13.4/GenServer.html#module-name-registration){:target=_blank} of the GenServer HexDoc
-
   ### Examples
 
       defmodule JokenExample.MyStrategy do
@@ -196,8 +193,6 @@ defmodule JokenJwks.DefaultStrategyTemplate do
 
         [_, _, {:jws, {:alg, algs}}] = JOSE.JWA.supports()
 
-        name = if is_nil(opts[:name]), do: __MODULE__, else: opts[:name]
-
         opts =
           opts
           |> Keyword.put(:time_interval, time_interval)
@@ -208,7 +203,7 @@ defmodule JokenJwks.DefaultStrategyTemplate do
           |> Keyword.put(:should_start, start?)
           |> Keyword.put(:first_fetch_sync, first_fetch_sync)
 
-        GenServer.start_link(__MODULE__, opts, name: name)
+        GenServer.start_link(__MODULE__, opts, name: __MODULE__)
       end
 
       # Server (callbacks)
