@@ -78,8 +78,6 @@ defmodule JokenJwks.DefaultStrategyTemplate do
     - `name`: name of the GenServer. Default is __MODULE__.
       It can be any acceptable values in [Name registration section](https://hexdocs.pm/elixir/1.13.4/GenServer.html#module-name-registration){:target=_blank} of the GenServer HexDoc
 
-    - `ets_name`: name of the `:ets` table for `EtsCache`. Default is __MODULE__. Has to be atom.
-
   ### Examples
 
       defmodule JokenExample.MyStrategy do
@@ -199,7 +197,6 @@ defmodule JokenJwks.DefaultStrategyTemplate do
         [_, _, {:jws, {:alg, algs}}] = JOSE.JWA.supports()
 
         name = if is_nil(opts[:name]), do: __MODULE__, else: opts[:name]
-        ets_name = if is_nil(opts[:ets_name]), do: __MODULE__, else: opts[:ets_name]
 
         opts =
           opts
@@ -210,7 +207,6 @@ defmodule JokenJwks.DefaultStrategyTemplate do
           |> Keyword.put(:jws_supported_algs, algs)
           |> Keyword.put(:should_start, start?)
           |> Keyword.put(:first_fetch_sync, first_fetch_sync)
-          |> Keyword.put(:ets_name, ets_name)
 
         GenServer.start_link(__MODULE__, opts, name: name)
       end
