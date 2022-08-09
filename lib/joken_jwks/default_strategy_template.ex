@@ -20,13 +20,13 @@ defmodule JokenJwks.DefaultStrategyTemplate do
   This strategy tries to be smart about keys it can USE to verify signatures. For example, if the
   provider has encryption keys, it will skip those (any key with field "use" with value "enc").
 
-  Also, if the running BEAM instance has no support for a given signature algorithm (possibly not implemented 
+  Also, if the running BEAM instance has no support for a given signature algorithm (possibly not implemented
   on the given OpenSSL + BEAM + JOSE combination) this implementation will also skip those.
 
   Be sure to check your logs as if there are NO signers available it will log a warning telling you
   that.
 
-  For debugging purpouses, calling the function `fetch_signers/2` directly might be helpful.  
+  For debugging purpouses, calling the function `fetch_signers/2` directly might be helpful.
 
   ## Usage
 
@@ -75,6 +75,11 @@ defmodule JokenJwks.DefaultStrategyTemplate do
     - `http_delay_per_retry` (`pos_integer()` - default `500`): passed to
       `Tesla.Middleware.Retry`
 
+    - `name`: name of the GenServer. Default is __MODULE__.
+      It can be any acceptable values in [Name registration section](https://hexdocs.pm/elixir/1.13.4/GenServer.html#module-name-registration){:target=_blank} of the GenServer HexDoc
+
+    - `ets_name`: name of the `:ets` table for `EtsCache`. Default is __MODULE__. Has to be atom.
+
   ### Examples
 
       defmodule JokenExample.MyStrategy do
@@ -114,7 +119,7 @@ defmodule JokenJwks.DefaultStrategyTemplate do
   defmacro __using__(_opts) do
     # credo:disable-for-next-line
     quote do
-      use Task, restart: :transient
+      use GenServer, restart: :transient
 
       require Logger
 
@@ -193,6 +198,9 @@ defmodule JokenJwks.DefaultStrategyTemplate do
 
         [_, _, {:jws, {:alg, algs}}] = JOSE.JWA.supports()
 
+        name = if is_nil(opts[:name]), do: __MODULE__, else: opts[:name]
+        ets_name = if is_nil(opts[:ets_name]), do: __MODULE__, else: opts[:ets_name]
+
         opts =
           opts
           |> Keyword.put(:time_interval, time_interval)
@@ -200,23 +208,40 @@ defmodule JokenJwks.DefaultStrategyTemplate do
           |> Keyword.put(:jwks_url, url)
           |> Keyword.put(:telemetry_prefix, telemetry_prefix)
           |> Keyword.put(:jws_supported_algs, algs)
+          |> Keyword.put(:should_start, start?)
+          |> Keyword.put(:first_fetch_sync, first_fetch_sync)
+          |> Keyword.put(:ets_name, ets_name)
 
-        do_init(start?, first_fetch_sync, opts)
+        GenServer.start_link(__MODULE__, opts, name: name)
+      end
+
+      # Server (callbacks)
+      @impl true
+      def init(opts) do
+        {should_start, opts} = opts |> Keyword.pop!(:should_start)
+        {first_fetch_sync, opts} = opts |> Keyword.pop!(:first_fetch_sync)
+        do_init(should_start, first_fetch_sync, opts)
       end
 
       defp do_init(should_start, first_fetch_sync, opts) do
         cond do
           should_start and first_fetch_sync ->
             fetch_signers(opts[:jwks_url], opts)
-            Task.start_link(__MODULE__, :poll, [opts])
+            {:ok, opts, {:continue, :start_poll}}
 
           should_start ->
-            {:ok, _} = start_fetch_signers(opts[:jwks_url], opts)
-            Task.start_link(__MODULE__, :poll, [opts])
+            fetch_signers(opts[:jwks_url], opts)
+            {:ok, opts, {:continue, :start_poll}}
 
           true ->
-            {:ok, spawn_link(fn -> "Normal shutdown" end)}
+            :ignore
         end
+      end
+
+      @impl true
+      def handle_continue(:start_poll, state) do
+        schedule_check_fetch(state)
+        {:noreply, state}
       end
 
       @impl SignerMatchStrategy
@@ -237,16 +262,18 @@ defmodule JokenJwks.DefaultStrategyTemplate do
         end
       end
 
-      @doc false
-      def poll(opts) do
-        interval = opts[:time_interval]
+      defp schedule_check_fetch(state) do
+        interval = state[:time_interval]
+        Process.send_after(self(), :check_fetch, interval)
+      end
 
-        receive do
-        after
-          interval ->
-            _ = check_fetch(opts)
-            poll(opts)
-        end
+      @doc false
+      @impl true
+      def handle_info(:check_fetch, state) do
+        check_fetch(state)
+        schedule_check_fetch(state)
+
+        {:noreply, state}
       end
 
       defp check_fetch(opts) do
@@ -259,12 +286,8 @@ defmodule JokenJwks.DefaultStrategyTemplate do
           # start re-fetching
           _counter ->
             JokenJwks.log(:debug, opts[:log_level], "Re-fetching cache is needed and will start.")
-            start_fetch_signers(opts[:jwks_url], opts)
+            fetch_signers(opts[:jwks_url], opts)
         end
-      end
-
-      defp start_fetch_signers(url, opts) do
-        Task.start(fn -> fetch_signers(url, opts) end)
       end
 
       @doc "Fetch signers with `JokenJwks.HttpFetcher`"
