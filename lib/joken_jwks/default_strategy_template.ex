@@ -209,8 +209,8 @@ defmodule JokenJwks.DefaultStrategyTemplate do
       # Server (callbacks)
       @impl true
       def init(opts) do
-        {should_start, opts} = opts |> Keyword.pop!(:should_start)
-        {first_fetch_sync, opts} = opts |> Keyword.pop!(:first_fetch_sync)
+        {should_start, opts} = Keyword.pop!(opts, :should_start)
+        {first_fetch_sync, opts} = Keyword.pop!(opts, :first_fetch_sync)
         do_init(should_start, first_fetch_sync, opts)
       end
 
