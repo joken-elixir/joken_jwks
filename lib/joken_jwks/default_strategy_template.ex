@@ -128,9 +128,11 @@ defmodule JokenJwks.DefaultStrategyTemplate do
         @moduledoc "Simple ETS counter based state machine"
 
         @doc "Starts ETS cache"
-        def new do
+        def new(incoming_ets_name \\ nil) do
+          ets_name = get_ets_name(incoming_ets_name)
+
           __MODULE__ =
-            :ets.new(__MODULE__, [
+            :ets.new(ets_name, [
               :set,
               :public,
               :named_table,
@@ -138,32 +140,36 @@ defmodule JokenJwks.DefaultStrategyTemplate do
               write_concurrency: true
             ])
 
-          :ets.insert(__MODULE__, {:counter, 0})
+          :ets.insert(ets_name, {:counter, 0})
         end
 
         @doc "Returns 0 - no need to fetch signers or 1 - need to fetch"
-        def check_state do
-          :ets.lookup_element(__MODULE__, :counter, 2)
+        def check_state(ets_name \\ nil) do
+          :ets.lookup_element(get_ets_name(ets_name), :counter, 2)
         end
 
         @doc "Sets the cache status"
-        def set_status(:refresh) do
-          :ets.update_counter(__MODULE__, :counter, {2, 1, 1, 1}, {:counter, 0})
+        def set_status(ets_name \\ nil, status)
+
+        def set_status(ets_name, :refresh) do
+          :ets.update_counter(get_ets_name(ets_name), :counter, {2, 1, 1, 1}, {:counter, 0})
         end
 
-        def set_status(:ok) do
-          :ets.update_counter(__MODULE__, :counter, {2, -1, 1, 0}, {:counter, 0})
+        def set_status(ets_name, :ok) do
+          :ets.update_counter(get_ets_name(ets_name), :counter, {2, -1, 1, 0}, {:counter, 0})
         end
 
         @doc "Loads fetched signers"
-        def get_signers do
-          :ets.lookup(__MODULE__, :signers)
+        def get_signers(ets_name) do
+          :ets.lookup(get_ets_name(ets_name), :signers)
         end
 
         @doc "Puts fetched signers"
-        def put_signers(signers) do
-          :ets.insert(__MODULE__, {:signers, signers})
+        def put_signers(ets_name \\ nil, signers) do
+          :ets.insert(get_ets_name(ets_name), {:signers, signers})
         end
+
+        defp get_ets_name(incoming_ets_name), do: incoming_ets_name || __MODULE__
       end
 
       @doc "Callback for initializing options upon strategy startup"
@@ -187,7 +193,8 @@ defmodule JokenJwks.DefaultStrategyTemplate do
         time_interval = opts[:time_interval] || 60 * 1_000
         log_level = opts[:log_level] || :debug
         url = opts[:jwks_url] || raise "No url set for fetching JWKS!"
-        EtsCache.new()
+        # can't use ets_func() yet because state is set only after start_link()
+        opts |> get_ets_name() |> EtsCache.new()
 
         telemetry_prefix = Keyword.get(opts, :telemetry_prefix, __MODULE__)
 
@@ -203,7 +210,17 @@ defmodule JokenJwks.DefaultStrategyTemplate do
           |> Keyword.put(:should_start, start?)
           |> Keyword.put(:first_fetch_sync, first_fetch_sync)
 
-        GenServer.start_link(__MODULE__, opts, name: __MODULE__)
+        # :strategy_name => atom
+        GenServer.start_link(__MODULE__, opts, name: opts[:strategy_name] || __MODULE__)
+      end
+
+      defp get_strategy_name(opts), do: opts[:strategy_name] || __MODULE__
+      defp get_ets_name(opts), do: opts[:ets_name] || opts[:strategy_name] <> "_ets"
+
+      defp ets_func(func, args \\ []) do
+        opts = GenServer.call(self(), :get_state)
+        ets_name = opts |> get_ets_name()
+        apply(ets_name, func, [ets_name | args])
       end
 
       # Server (callbacks)
@@ -230,6 +247,11 @@ defmodule JokenJwks.DefaultStrategyTemplate do
       end
 
       @impl true
+      def handle_call(:get_state, _from, state) do
+        {:reply, state}
+      end
+
+      @impl true
       def handle_continue(:start_poll, state) do
         schedule_check_fetch(state)
         {:noreply, state}
@@ -237,12 +259,12 @@ defmodule JokenJwks.DefaultStrategyTemplate do
 
       @impl SignerMatchStrategy
       def match_signer_for_kid(kid, opts) do
-        with {:cache, [{:signers, signers}]} <- {:cache, EtsCache.get_signers()},
+        with {:cache, [{:signers, signers}]} <- {:cache, ets_func(:get_signers)},
              {:signer, signer} when not is_nil(signer) <- {:signer, signers[kid]} do
           {:ok, signer}
         else
           {:signer, nil} ->
-            EtsCache.set_status(:refresh)
+            ets_func(:set_status, [:refresh])
             {:error, :kid_does_not_match}
 
           {:cache, []} ->
@@ -268,7 +290,7 @@ defmodule JokenJwks.DefaultStrategyTemplate do
       end
 
       defp check_fetch(opts) do
-        case EtsCache.check_state() do
+        case ets_func(:check_state) do
           # no need to re-fetch
           0 ->
             JokenJwks.log(:debug, opts[:log_level], "Re-fetching cache is not needed.")
@@ -293,12 +315,12 @@ defmodule JokenJwks.DefaultStrategyTemplate do
             JokenJwks.log(:warn, log_level, "NO VALID SIGNERS FOUND!")
           end
 
-          EtsCache.put_signers(signers)
-          EtsCache.set_status(:ok)
+          ets_func(:put_signers, [signers])
+          ets_func(:set_status, [:ok])
         else
           {:error, _reason} = err ->
             JokenJwks.log(:error, log_level, "Failed to fetch signers. Reason: #{inspect(err)}")
-            EtsCache.set_status(:refresh)
+            ets_func(:set_status, [:refresh])
 
           err ->
             JokenJwks.log(
@@ -307,7 +329,7 @@ defmodule JokenJwks.DefaultStrategyTemplate do
               "Unexpected error while fetching signers. Reason: #{inspect(err)}"
             )
 
-            EtsCache.set_status(:refresh)
+            ets_func(:set_status, [:refresh])
         end
       end
 
