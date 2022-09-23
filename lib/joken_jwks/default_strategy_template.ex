@@ -75,6 +75,12 @@ defmodule JokenJwks.DefaultStrategyTemplate do
     - `http_delay_per_retry` (`pos_integer()` - default `500`): passed to
       `Tesla.Middleware.Retry`
 
+    - `strategy_name` (`atom() or tuple()` - default `nil`): name for GenServer driving the module.
+      - node that this can be an atom or a tuple representing Registry-based naming, e.g.
+        `name: {:via, Registry, {:your_registry_name, :my_gen_server_name}}`
+
+    - `ets_name` (`atom()` - default `nil`): override default naming of the internal :ets cache
+
   ### Examples
 
       defmodule JokenExample.MyStrategy do
@@ -215,7 +221,23 @@ defmodule JokenJwks.DefaultStrategyTemplate do
       end
 
       defp get_strategy_name(opts), do: opts[:strategy_name] || __MODULE__
-      defp get_ets_name(opts), do: opts[:ets_name] || opts[:strategy_name] <> "_ets"
+
+      defp get_ets_name(opts),
+        do: opts[:ets_name] || ets_name_with_strategy_name_prefixed(opts)
+
+      defp ets_name_with_strategy_name_prefixed(opts) do
+        opts
+        |> get_strategy_name()
+        |> case do
+          name when is_atom() -> Atom.to_string(name)
+          {:via, Registry, {_registry_name, name}} when is_atom(name) -> Atom.to_string(name)
+          _ -> nil
+        end
+        |> case do
+          nil -> EtsCache
+          name -> (name <> "_ets") |> String.to_atom()
+        end
+      end
 
       defp ets_func(func, args \\ []) do
         opts = GenServer.call(self(), :get_state)
@@ -248,7 +270,7 @@ defmodule JokenJwks.DefaultStrategyTemplate do
 
       @impl true
       def handle_call(:get_state, _from, state) do
-        {:reply, state}
+        {:reply, state, state}
       end
 
       @impl true
