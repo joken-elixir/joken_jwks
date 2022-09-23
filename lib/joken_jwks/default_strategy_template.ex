@@ -229,7 +229,7 @@ defmodule JokenJwks.DefaultStrategyTemplate do
         opts
         |> get_strategy_name()
         |> case do
-          name when is_atom() -> Atom.to_string(name)
+          name when is_atom(name) -> Atom.to_string(name)
           {:via, Registry, {_registry_name, name}} when is_atom(name) -> Atom.to_string(name)
           _ -> nil
         end
