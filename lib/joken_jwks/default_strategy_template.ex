@@ -77,7 +77,7 @@ defmodule JokenJwks.DefaultStrategyTemplate do
 
     - `strategy_name` (`atom() or tuple()` - default `nil`): name for GenServer driving the module.
       - node that this can be an atom or a tuple representing Registry-based naming, e.g.
-        `name: {:via, Registry, {:your_registry_name, :my_gen_server_name}}`
+        `{:via, Registry, {:your_registry_name, :my_gen_server_name}}`
 
     - `ets_name` (`atom()` - default `nil`): override default naming of the internal :ets cache
 
@@ -136,8 +136,9 @@ defmodule JokenJwks.DefaultStrategyTemplate do
         @doc "Starts ETS cache"
         def new(incoming_ets_name \\ nil) do
           ets_name = get_ets_name(incoming_ets_name)
+          IO.inspect(ets_name, label: "ets_name")
 
-          __MODULE__ =
+          ^ets_name =
             :ets.new(ets_name, [
               :set,
               :public,
@@ -200,8 +201,9 @@ defmodule JokenJwks.DefaultStrategyTemplate do
         log_level = opts[:log_level] || :debug
         url = opts[:jwks_url] || raise "No url set for fetching JWKS!"
         # can't use ets_func() yet because state is set only after start_link()
+        IO.inspect("ETS CACHE NEW")
         opts |> get_ets_name() |> EtsCache.new()
-
+        IO.inspect("AM HERE")
         telemetry_prefix = Keyword.get(opts, :telemetry_prefix, __MODULE__)
 
         [_, _, {:jws, {:alg, algs}}] = JOSE.JWA.supports()

@@ -21,7 +21,7 @@ defmodule JokenJwks.DynamicDefaultStrategySupervisor do
   def start_strategy(opts) do
     child_spec = %{
       id: DefaultStrategy,
-      start: {DefaultStrategy, :start_link, opts}
+      start: {DefaultStrategy, :start_link, [opts]}
     }
 
     DynamicSupervisor.start_child(__MODULE__, child_spec)
