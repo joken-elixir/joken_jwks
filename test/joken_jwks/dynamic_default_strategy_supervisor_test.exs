@@ -10,7 +10,8 @@ defmodule JokenJwks.DynamicDefaultStrategySupervisorTest do
   setup :set_mox_from_context
 
   test "should create child with naming done with Registry" do
-    ref = setup_jwks()
+    ref1 = setup_jwks(1_000, 1)
+    ref2 = setup_jwks(1_000, 1, "http://some/other/jwks")
 
     child_spec_list = [
       DynamicDefaultStrategyRegistry,
@@ -22,19 +23,29 @@ defmodule JokenJwks.DynamicDefaultStrategySupervisorTest do
         start_supervised(child)
       end
 
-    opts = [
+    opts1 = [
       jwks_url: "http://jwks",
       strategy_name: {:via, Registry, {DynamicDefaultStrategyRegistry, :tenant_x_jwks_strategy}}
     ]
 
-    DynamicDefaultStrategySupervisor.start_strategy(opts) |> IO.inspect()
+    opts2 = [
+      jwks_url: "http://some/other/jwks",
+      strategy_name: {:via, Registry, {DynamicDefaultStrategyRegistry, :tenant_y_jwks_strategy}}
+    ]
 
-    wait_until_jwks_call_done(ref)
+    DynamicDefaultStrategySupervisor.start_strategy(opts1)
+    |> IO.inspect(label: "start_strategy() in test for opts1")
+
+    DynamicDefaultStrategySupervisor.start_strategy(opts2)
+    |> IO.inspect(label: "start_strategy() in test for opts2")
+
+    wait_until_jwks_call_done(ref1)
+    wait_until_jwks_call_done(ref2)
   end
 
-  defp setup_jwks(time_interval \\ 1_000) do
+  defp setup_jwks(time_interval \\ 1_000, num_of_call_invocations \\ 1, url \\ "http://jwks") do
     ref =
-      expect_call(fn %{url: "http://jwks"} ->
+      expect_call(num_of_call_invocations, fn %{url: "http://jwks"} ->
         {:ok, json(%{"keys" => [TestUtils.build_key("id1"), TestUtils.build_key("id2")]})}
       end)
 
@@ -43,7 +54,7 @@ defmodule JokenJwks.DynamicDefaultStrategySupervisorTest do
     ref
   end
 
-  defp expect_call(num_of_invocations \\ 1, function) do
+  defp expect_call(num_of_invocations, function) do
     parent = self()
     ref = make_ref()
 
