@@ -52,6 +52,10 @@ defmodule JokenJwks.DynamicDefaultStrategyRegistry do
   """
   @spec lookup_by_name(pid()) :: nil | atom()
   def lookup_name_by_pid(pid) do
-    Registry.keys(__MODULE__, pid) |> List.first()
+    Process.whereis(__MODULE__)
+    |> case do
+      nil -> nil
+      _ -> Registry.keys(__MODULE__, pid) |> List.first()
+    end
   end
 end
