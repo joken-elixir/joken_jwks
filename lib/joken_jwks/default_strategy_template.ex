@@ -77,7 +77,7 @@ defmodule JokenJwks.DefaultStrategyTemplate do
 
     - `strategy_name` (`atom() or tuple()` - default `nil`): name for GenServer driving the module.
       - node that this can be an atom or a tuple representing Registry-based naming, e.g.
-        `{:via, Registry, {:your_registry_name, :my_gen_server_name}}`
+        `{:via, Registry, {JokenJwks.DynamicDefaultStrategyRegistry, :my_gen_server_name}}`
 
     - `ets_name` (`atom()` - default `nil`): override default naming of the internal :ets cache
 
@@ -167,7 +167,7 @@ defmodule JokenJwks.DefaultStrategyTemplate do
         end
 
         @doc "Loads fetched signers"
-        def get_signers(ets_name) do
+        def get_signers(ets_name \\ nil) do
           :ets.lookup(get_ets_name(ets_name), :signers)
         end
 
@@ -231,20 +231,29 @@ defmodule JokenJwks.DefaultStrategyTemplate do
         opts
         |> get_strategy_name()
         |> case do
-          name when is_atom(name) -> Atom.to_string(name)
+          name when is_atom(name) -> name
           {:via, Registry, {_registry_name, name}} when is_atom(name) -> Atom.to_string(name)
           _ -> nil
         end
         |> case do
           nil -> EtsCache
+          __MODULE__ -> EtsCache
           name -> (name <> "_ets") |> String.to_atom()
         end
       end
 
       defp ets_func(func, args \\ []) do
-        opts = GenServer.call(self(), :get_state)
-        ets_name = opts |> get_ets_name()
-        apply(ets_name, func, [ets_name | args])
+        strategy_name =
+          self()
+          |> JokenJwks.DynamicDefaultStrategyRegistry.lookup_name_by_pid()
+          |> case do
+            nil -> __MODULE__
+            name -> name
+          end
+
+        opts = [strategy_name: strategy_name]
+        ets_name = get_ets_name(opts)
+        apply(EtsCache, func, [ets_name | args])
       end
 
       # Server (callbacks)
