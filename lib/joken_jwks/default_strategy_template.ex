@@ -219,7 +219,14 @@ defmodule JokenJwks.DefaultStrategyTemplate do
         GenServer.start_link(__MODULE__, opts, name: opts[:strategy_name] || __MODULE__)
       end
 
-      defp get_strategy_name(opts), do: opts[:strategy_name] || __MODULE__
+      defp get_strategy_name(opts) do
+        (opts[:strategy_name] || __MODULE__)
+        |> case do
+          name when is_atom(name) -> name
+          {:via, Registry, {_registry_name, name}} when is_atom(name) -> Atom.to_string(name)
+          _ -> nil
+        end
+      end
 
       defp get_ets_name(opts),
         do: opts[:ets_name] || ets_name_with_strategy_name_prefixed(opts)
@@ -228,14 +235,10 @@ defmodule JokenJwks.DefaultStrategyTemplate do
         opts
         |> get_strategy_name()
         |> case do
-          name when is_atom(name) -> name
-          {:via, Registry, {_registry_name, name}} when is_atom(name) -> Atom.to_string(name)
-          _ -> nil
-        end
-        |> case do
           nil -> EtsCache
           __MODULE__ -> EtsCache
-          name -> (name <> "_ets") |> String.to_atom()
+          name when is_binary(name) -> (name <> "_ets") |> String.to_atom()
+          name when is_atom(name) -> (Atom.to_string(name) <> "_ets") |> String.to_atom()
         end
       end
 
@@ -269,6 +272,7 @@ defmodule JokenJwks.DefaultStrategyTemplate do
 
           should_start ->
             fetch_signers(opts[:jwks_url], opts)
+
             {:ok, opts, {:continue, :start_poll}}
 
           true ->

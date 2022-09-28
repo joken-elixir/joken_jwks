@@ -33,11 +33,9 @@ defmodule JokenJwks.DynamicDefaultStrategySupervisorTest do
       strategy_name: {:via, Registry, {DynamicDefaultStrategyRegistry, :tenant_y_jwks_strategy}}
     ]
 
-    DynamicDefaultStrategySupervisor.start_strategy(opts1)
-    |> IO.inspect(label: "start_strategy() in test for opts1")
+    {:ok, pid1} = DynamicDefaultStrategySupervisor.start_strategy(opts1)
 
-    DynamicDefaultStrategySupervisor.start_strategy(opts2)
-    |> IO.inspect(label: "start_strategy() in test for opts2")
+    {:ok, pid2} = DynamicDefaultStrategySupervisor.start_strategy(opts2)
 
     wait_until_jwks_call_done(ref1)
     wait_until_jwks_call_done(ref2)
@@ -45,7 +43,7 @@ defmodule JokenJwks.DynamicDefaultStrategySupervisorTest do
 
   defp setup_jwks(time_interval \\ 1_000, num_of_call_invocations \\ 1, url \\ "http://jwks") do
     ref =
-      expect_call(num_of_call_invocations, fn %{url: "http://jwks"} ->
+      expect_call(num_of_call_invocations, fn %{url: url} ->
         {:ok, json(%{"keys" => [TestUtils.build_key("id1"), TestUtils.build_key("id2")]})}
       end)
 
