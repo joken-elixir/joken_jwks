@@ -47,7 +47,6 @@ defmodule JokenJwks.DynamicDefaultStrategySupervisorTest do
         {:ok, json(%{"keys" => [TestUtils.build_key("id1"), TestUtils.build_key("id2")]})}
       end)
 
-    # start_supervised!({TestToken.Strategy, jwks_url: "http://jwks", time_interval: time_interval})
     :timer.sleep(100)
     ref
   end
