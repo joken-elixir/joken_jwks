@@ -1,6 +1,5 @@
 defmodule JokenJwks.DynamicDefaultStrategySupervisorTest do
   use ExUnit.Case
-  import ExUnit.CaptureIO
   import Mox
   import Tesla.Mock, only: [json: 1, json: 2]
   alias JokenJwks.DynamicDefaultStrategySupervisor
@@ -11,14 +10,13 @@ defmodule JokenJwks.DynamicDefaultStrategySupervisorTest do
   setup :verify_on_exit!
 
   defp setup_jwks(
-         time_interval \\ 1_000,
          num_of_call_invocations \\ 1,
          url \\ "http://jwks",
          key1 \\ "id1",
          key2 \\ "id2"
        ) do
     ref =
-      expect_call(num_of_call_invocations, fn %{url: url} ->
+      expect_call(num_of_call_invocations, fn %{url: ^url} ->
         {:ok, json(%{"keys" => [TestUtils.build_key(key1), TestUtils.build_key(key2)]})}
       end)
 
@@ -40,15 +38,15 @@ defmodule JokenJwks.DynamicDefaultStrategySupervisorTest do
   end
 
   test "should create child with naming done with Registry" do
-    ref1 = setup_jwks(1_000, 1)
-    ref2 = setup_jwks(1_000, 1, "http://some/other/jwks")
+    ref1 = setup_jwks()
+    ref2 = setup_jwks(1, "http://some/other/jwks")
 
     child_spec_list = [
       DynamicDefaultStrategyRegistry,
       DynamicDefaultStrategySupervisor
     ]
 
-    started_children =
+    _started_children =
       for child <- child_spec_list do
         start_supervised(child)
       end
@@ -63,9 +61,9 @@ defmodule JokenJwks.DynamicDefaultStrategySupervisorTest do
       strategy_name: {:via, Registry, {DynamicDefaultStrategyRegistry, :tenant_y_jwks_strategy}}
     ]
 
-    {:ok, pid1} = DynamicDefaultStrategySupervisor.start_strategy(opts1)
+    {:ok, _pid1} = DynamicDefaultStrategySupervisor.start_strategy(opts1)
 
-    {:ok, pid2} = DynamicDefaultStrategySupervisor.start_strategy(opts2)
+    {:ok, _pid2} = DynamicDefaultStrategySupervisor.start_strategy(opts2)
 
     wait_until_jwks_call_done(ref1)
     wait_until_jwks_call_done(ref2)
@@ -79,7 +77,7 @@ defmodule JokenJwks.DynamicDefaultStrategySupervisorTest do
         DynamicDefaultStrategySupervisor
       ]
 
-      started_children =
+      _started_children =
         for child <- child_spec_list do
           start_supervised(child)
         end
@@ -90,8 +88,8 @@ defmodule JokenJwks.DynamicDefaultStrategySupervisorTest do
       jwks2_key1 = "id3"
       jwks2_key2 = "id4"
       jwks2_url = "http://jwks/two"
-      ref1 = setup_jwks(1_000, 1, jwks1_url, jwks1_key1, jwks1_key2)
-      ref2 = setup_jwks(1_000, 1, jwks2_url, jwks2_key1, jwks2_key2)
+      ref1 = setup_jwks(1, jwks1_url, jwks1_key1, jwks1_key2)
+      ref2 = setup_jwks(1, jwks2_url, jwks2_key1, jwks2_key2)
 
       opts1 = [
         jwks_url: jwks1_url,
@@ -230,7 +228,7 @@ defmodule JokenJwks.DynamicDefaultStrategySupervisorTest do
       refute {:ok, %{}} == TestTokenOne.verify_and_validate(token)
     end
 
-    test "can invalidate wrong keys", %{jwks1_key1: jwks1_key1, jwks2_key1: jwks2_key1} do
+    test "can invalidate wrong keys", %{jwks1_key1: jwks1_key1} do
       # test for token one
       token = TestTokenOne.generate_and_sign!(%{}, TestUtils.create_signer_with_kid(jwks1_key1))
 
@@ -239,10 +237,9 @@ defmodule JokenJwks.DynamicDefaultStrategySupervisorTest do
 
     test "fails if no signers are fetched", %{
       jwks1_url: jwks1_url,
-      jwks1_key1: jwks1_key1,
-      strategy1_pid: strategy1_pid
+      jwks1_key1: jwks1_key1
     } do
-      expect_call(fn %{url: jwks1_url} ->
+      expect_call(fn %{url: ^jwks1_url} ->
         {:ok, json(%{"keys" => [TestUtils.build_key(jwks1_key1)]}, status: 500)}
       end)
 
