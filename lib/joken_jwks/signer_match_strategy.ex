@@ -10,4 +10,10 @@ defmodule JokenJwks.SignerMatchStrategy do
 
   @callback match_signer_for_kid(kid :: binary(), hook_options :: any()) ::
               {:ok, Joken.Signer.t()} | {:error, reason :: atom()}
+
+  # When dealing with dynamically generated strategies (via GenServer), also implement this one
+  @callback match_signer_for_kid(pid :: pid(), kid :: binary(), hook_options :: any()) ::
+              {:ok, Joken.Signer.t()} | {:error, reason :: atom()}
+
+  @optional_callbacks match_signer_for_kid: 3
 end
