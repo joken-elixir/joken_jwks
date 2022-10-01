@@ -192,7 +192,7 @@ defmodule JokenJwks.DynamicDefaultStrategySupervisorTest do
     test "can fetch keys with token module dynamically passing a strategy", %{
       jwks1_key1: jwks1_key1
     } do
-      # shows how you can use a Token module, via `use Config`, configured for a specific IDP,
+      # shows how you can use a Token module, via `use Joken.Config`, configured for a specific IDP,
       # and then use it with multiple strategies that might use the same claim configuration,
       # but might use each strategy's JWKS url which is unique per strategy.
       # This often occurs when you're creating an auth service for many tenants.

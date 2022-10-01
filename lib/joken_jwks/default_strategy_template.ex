@@ -115,6 +115,9 @@ defmodule JokenJwks.DefaultStrategyTemplate do
         # rest of your token config
       end
 
+  ## Dynamically "Boot Up" Strategies
+  See `JokenJwks.DynamicDefaultStrategySupervisor` and associated tests for more information.
+
   """
 
   defmacro __using__(_opts) do
