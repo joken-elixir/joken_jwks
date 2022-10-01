@@ -58,6 +58,41 @@ defmodule JokenJwks do
     end
   end
 
+  @doc """
+  Use this for dynamically generated strategies.
+  We can't use add_hook() for dynamically generated strategies because they are runtime based,
+  and add_hook is compile time.
+
+  ## Example
+  ```
+
+      defmodule TestTokenOne do
+        use Joken.Config
+
+        @impl true
+        def before_verify(hook_options, {_token, _signer} = config_tuple) do
+          strategy_pid =
+            JokenJwks.DynamicDefaultStrategyRegistry.lookup_by_name!(:tenant_1_jwks_strategy)
+
+          strategy = JokenJwks.DynamicDefaultStrategySupervisor.DefaultStrategy
+
+          JokenJwks.before_verify_by_pid(strategy, strategy_pid, hook_options, config_tuple)
+        end
+
+        def token_config, do: %{}
+      end
+
+  ```
+  """
+  def before_verify_by_pid(strategy, strategy_pid, hook_options, {token, _signer}) do
+    with {:ok, kid} <- get_token_kid(token),
+         {:ok, signer} <- strategy.match_signer_for_kid(strategy_pid, kid, hook_options) do
+      {:cont, {token, signer}}
+    else
+      err -> {:halt, err}
+    end
+  end
+
   defp get_token_kid(token) do
     with {:ok, headers} <- Joken.peek_header(token),
          {:kid, kid} when not is_nil(kid) <- {:kid, headers["kid"]} do
