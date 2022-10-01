@@ -81,7 +81,7 @@ defmodule JokenJwks.DynamicDefaultStrategySupervisorTest do
 
       started_children =
         for child <- child_spec_list do
-          start_supervised(child) |> IO.inspect(label: "start_supervised")
+          start_supervised(child)
         end
 
       jwks1_key1 = "id1"
@@ -251,6 +251,8 @@ defmodule JokenJwks.DynamicDefaultStrategySupervisorTest do
         JokenJwks.DynamicDefaultStrategyRegistry.lookup_by_name!(:tenant_1_jwks_strategy)
 
       Process.exit(strategy_pid, :something_funky)
+
+      Process.sleep(100)
 
       token = TestTokenOne.generate_and_sign!(%{}, TestUtils.create_signer_with_kid(jwks1_key1))
       assert {:error, :no_signers_fetched} == TestTokenOne.verify_and_validate(token)
