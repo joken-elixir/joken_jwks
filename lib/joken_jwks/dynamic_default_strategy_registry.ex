@@ -48,6 +48,16 @@ defmodule JokenJwks.DynamicDefaultStrategyRegistry do
   end
 
   @doc """
+  Look up Strategy pid by name and just return the pid. Raise if not found.
+  """
+  @spec lookup_by_name!(atom()) :: pid()
+  def lookup_by_name!(name) do
+    {:ok, pid} = lookup_by_name(name)
+
+    pid
+  end
+
+  @doc """
   Look up assigned name by pid. Assume one name assigned per pid.
   """
   @spec lookup_by_name(pid()) :: nil | atom()
