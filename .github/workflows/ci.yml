@@ -37,7 +37,6 @@ jobs:
           mix deps.get
           mix deps.compile
           MIX_NEV=test mix deps.compile
-          mix dialyzer --plt
 
   static-code-analysis:
     needs: dependencies
@@ -68,5 +67,3 @@ jobs:
             priv/plts
           key: ${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-${{ hashFiles('mix.lock') }}
       - run: mix format --check-formatted
-      - run: mix credo
-      - run: mix dialyzer --no-check
