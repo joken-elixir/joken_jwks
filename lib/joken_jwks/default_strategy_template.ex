@@ -243,22 +243,32 @@ defmodule JokenJwks.DefaultStrategyTemplate do
       end
 
       defp ets_func(func, args \\ []) do
-        strategy_name =
-          self()
-          |> JokenJwks.DynamicDefaultStrategyRegistry.lookup_name_by_pid()
-          |> case do
-            nil -> __MODULE__
-            name -> name
-          end
+        strategy_name = strategy_name_by_pid(self())
 
         opts = [strategy_name: strategy_name]
         ets_name = get_ets_name(opts)
         apply(EtsCache, func, [ets_name | args])
       end
 
+      defp strategy_name_by_pid(pid) do
+        pid
+        |> JokenJwks.DynamicDefaultStrategyRegistry.lookup_name_by_pid()
+        |> case do
+          nil -> __MODULE__
+          name -> name
+        end
+      end
+
+      # Client
+      @impl SignerMatchStrategy
+      def match_signer_for_kid(pid, kid, opts) do
+        GenServer.call(pid, {:match_signer_for_kid, kid, opts})
+      end
+
       # Server (callbacks)
       @impl true
       def init(opts) do
+        Process.flag(:trap_exit, true)
         {should_start, opts} = Keyword.pop!(opts, :should_start)
         {first_fetch_sync, opts} = Keyword.pop!(opts, :first_fetch_sync)
         do_init(should_start, first_fetch_sync, opts)
@@ -286,9 +296,22 @@ defmodule JokenJwks.DefaultStrategyTemplate do
       end
 
       @impl true
+      def handle_call({:match_signer_for_kid, kid, opts}, _from, state) do
+        {:reply, match_signer_for_kid(kid, opts), state}
+      end
+
+      @impl true
       def handle_continue(:start_poll, state) do
         schedule_check_fetch(state)
         {:noreply, state}
+      end
+
+      @impl true
+      def terminate(_reason, state) do
+        # remove the associated ETS table during termination
+        JokenJwks.log(:debug, state[:log_level], "Terminating - deleting ETS table")
+        state |> get_ets_name() |> :ets.delete()
+        JokenJwks.log(:debug, state[:log_level], "Terminating - finished deleting ETS table")
       end
 
       @impl SignerMatchStrategy
