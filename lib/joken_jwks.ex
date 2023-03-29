@@ -21,7 +21,7 @@ defmodule JokenJwks do
 
   Or:
 
-      Joken.verify_and_validate(config, token, nil, context, [{Joken.Jwks, strategy: MyStrategy}])
+      Joken.verify_and_validate(config, token, nil, context, [{JokenJwks, strategy: MyStrategy}])
 
   ## Fetching strategy
 
