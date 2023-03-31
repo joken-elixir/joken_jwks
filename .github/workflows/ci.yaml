@@ -1,0 +1,123 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  check_duplicate_runs:
+    name: Check for duplicate runs
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    outputs:
+      should_skip: ${{ steps.skip_check.outputs.should_skip }}
+    steps:
+      - id: skip_check
+        uses: fkirc/skip-duplicate-actions@master
+        with:
+          concurrent_skipping: always
+          cancel_others: true
+          skip_after_successful_duplicate: true
+          paths_ignore: '["**/README.md", "**/CHANGELOG.md", "**/LICENSE.txt"]'
+          do_not_skip: '["pull_request"]'
+
+  tests:
+    name: Run tests
+
+    needs: check_duplicate_runs
+    if: ${{ needs.check_duplicate_runs.outputs.should_skip != 'true' }}
+
+    env:
+      FORCE_COLOR: 1
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - elixir: "1.13.3"
+            otp: "24.3"
+          - elixir: "1.14.3"
+            otp: "24.3"
+          - elixir: "1.14.3"
+            otp: "25.2"
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - name: Set up Elixir
+      uses: erlef/setup-beam@v1
+      with:
+        elixir-version: ${{ matrix.elixir }}
+        otp-version: ${{ matrix.otp }}
+
+    - name: Restore deps and _build cache
+      uses: actions/cache@v2
+      with:
+        path: |
+          deps
+          _build
+        key: deps-${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-${{ hashFiles('**/mix.lock') }}-git-${{ github.sha }}
+        restore-keys: |
+          deps-${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-${{ hashFiles('**/mix.lock') }}
+          deps-${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-
+
+    - name: Create dializer plts path
+      run: mkdir -p priv/plts
+
+    - name: Restore plts cache
+      uses: actions/cache@v2
+      with:
+        path: priv/plts
+        key: plts-${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-${{ hashFiles('**/mix.lock') }}-${{ github.sha }}
+        restore-keys: |
+          plts-${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-${{ hashFiles('**/mix.lock') }}
+          plts-${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-
+
+    - name: Install dependencies
+      run: mix deps.get --only test
+
+    - name: Check source code format
+      run: mix format --check-formatted
+
+    - name: Perform source code static analysis
+      run: mix credo --strict
+      env:
+        MIX_ENV: test
+
+    - name: Remove compiled application files
+      run: mix clean
+
+    - name: Compile dependencies
+      run: mix compile
+      env:
+        MIX_ENV: test
+
+    - name: Compile & lint dependencies
+      run: mix compile --warnings-as-errors
+      env:
+        MIX_ENV: test
+
+    - name: Run tests
+      run: mix coveralls.github --warnings-as-errors
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Run dialyzer
+      run: mix dialyzer
+      env:
+        MIX_ENV: test
+
+  all_done:
+    name: Tests done
+    needs: tests
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: All done
+      run: echo '+'

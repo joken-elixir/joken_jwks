@@ -10,7 +10,8 @@ defmodule JokenJwks.HttpFetcher do
 
   See our tests for an example of mocking the HTTP fetching.
   """
-  alias JokenJwks.Middleware.Telemetry, as: JokenJwksTelemetry
+  require Logger
+
   alias Tesla.Middleware, as: M
 
   @doc """
@@ -23,34 +24,32 @@ defmodule JokenJwks.HttpFetcher do
   """
   @spec fetch_signers(binary, keyword()) :: {:ok, list} | {:error, atom} | no_return()
   def fetch_signers(url, opts) do
-    log_level = opts[:log_level]
-
     with {:ok, resp} <- Tesla.get(new(opts), url),
          {:status, 200} <- {:status, resp.status},
          {:keys, keys} when not is_nil(keys) <- {:keys, resp.body["keys"]} do
-      JokenJwks.log(:debug, log_level, "JWKS fetching: fetched keys -> #{inspect(keys)}")
+      Logger.debug("JWKS fetching: fetched keys -> #{inspect(keys)}")
       {:ok, keys}
     else
       {:status, status} when is_integer(status) and status >= 400 and status < 500 ->
-        JokenJwks.log(:debug, log_level, "JWKS fetching: #{status} -> client error")
+        Logger.debug("JWKS fetching: #{status} -> client error")
         {:error, :jwks_client_http_error}
 
       {:status, status} when is_integer(status) and status >= 500 ->
-        JokenJwks.log(:debug, log_level, "JWKS fetching: #{status} -> server error")
+        Logger.debug("JWKS fetching: #{status} -> server error")
         {:error, :jwks_server_http_error}
 
       {:status, _status} ->
         {:error, :status_not_200}
 
       {:error, :econnrefused} ->
-        JokenJwks.log(:debug, log_level, "JWKS fetching: could not connect (:econnrefused)")
+        Logger.debug("JWKS fetching: could not connect (:econnrefused)")
         {:error, :could_not_reach_jwks_url}
 
       {:keys, nil} ->
         {:error, :no_keys_on_response}
 
       error ->
-        JokenJwks.log(:debug, log_level, "JWKS fetching: unknown error #{inspect(error)}")
+        Logger.debug("JWKS fetching: unknown error #{inspect(error)}")
         error
     end
   end
@@ -67,7 +66,7 @@ defmodule JokenJwks.HttpFetcher do
     middleware = [
       {M.JSON, decode_content_types: ["application/jwk-set+json"]},
       M.Logger,
-      {JokenJwksTelemetry, telemetry_prefix: opts[:telemetry_prefix]},
+      {M.Telemetry, metadata: opts[:telemetry_metadata]},
       {M.Retry,
        delay: opts[:http_delay_per_retry] || 500,
        max_retries: opts[:http_max_retries_per_fetch] || 10}

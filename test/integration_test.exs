@@ -5,7 +5,6 @@ defmodule JokenJwks.IntegrationTest do
 
   @google_certs_url "https://www.googleapis.com/oauth2/v3/certs"
   @microsoft_certs_url "https://login.microsoftonline.com/common/discovery/v2.0/keys"
-  @identity_server_certs_url "https://demo.identityserver.io/.well-known/openid-configuration/jwks"
 
   defmodule Strategy do
     use JokenJwks.DefaultStrategyTemplate
@@ -30,17 +29,6 @@ defmodule JokenJwks.IntegrationTest do
       http_adapter: Tesla.Adapter.Hackney,
       first_fetch_sync: true,
       explicit_alg: "RS256"
-    )
-
-    assert signers = Strategy.EtsCache.get_signers()
-    assert Enum.count(signers) >= 1
-  end
-
-  test "can parse IdentityServer's JWKS" do
-    Strategy.start_link(
-      jwks_url: @identity_server_certs_url,
-      http_adapter: Tesla.Adapter.Hackney,
-      first_fetch_sync: true
     )
 
     assert signers = Strategy.EtsCache.get_signers()

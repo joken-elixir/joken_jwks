@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### BREAKING CHANGES
+
+- No more custom logging (use Logger facilities)
+
+If you need to disable specific logging from the library, you can use default `Logger` facilities like `Logger.put_application_level/2` (which accepts `:none`) and so on. There is no need to use custom logging here anymore.
+
+- No more custom telemetry (use Teslas built-in)
+
+Tesla has its own middleware for telemetry events. We should just use that :) 
+
 ## [1.6.0] - 2021-10-26
 
 This release brings a more resilient parsing of JWK sets. If the provider has encryption keys along with signing keys, we skip them.
