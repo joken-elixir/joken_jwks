@@ -21,7 +21,7 @@ defmodule JokenJwks do
 
   Or:
 
-      Joken.verify_and_validate(config, token, nil, context, [{Joken.Jwks, strategy: MyStrategy}])
+      Joken.verify_and_validate(config, token, nil, context, [{JokenJwks, strategy: MyStrategy}])
 
   ## Fetching strategy
 
@@ -67,20 +67,4 @@ defmodule JokenJwks do
       err -> err
     end
   end
-
-  def log(_, :none, _), do: :ok
-
-  def log(:debug, log_level, msg) do
-    unless Logger.compare_levels(:debug, log_level) == :lt, do: Logger.debug(fn -> msg end)
-  end
-
-  def log(:info, log_level, msg) do
-    unless Logger.compare_levels(:info, log_level) == :lt, do: Logger.info(fn -> msg end)
-  end
-
-  def log(:warn, log_level, msg) do
-    unless Logger.compare_levels(:warn, log_level) == :lt, do: Logger.warn(fn -> msg end)
-  end
-
-  def log(:error, _, msg), do: Logger.error(msg)
 end

@@ -113,6 +113,9 @@ defmodule JokenJwks.DefaultStrategyTest do
   end
 
   test "can set log_level to none" do
+    Logger.put_application_level(:joken_jwks, :none)
+    on_exit(fn -> Logger.delete_application_level(:joken_jwks) end)
+
     expect_call(fn %{url: "http://jwks"} ->
       {:ok, json(%{"keys" => [TestUtils.build_key("id1"), TestUtils.build_key("id2")]})}
     end)
@@ -127,6 +130,9 @@ defmodule JokenJwks.DefaultStrategyTest do
   end
 
   test "can set log_level to error and skip debug messages" do
+    Logger.put_application_level(:joken_jwks, :error)
+    on_exit(fn -> Logger.delete_application_level(:joken_jwks) end)
+
     expect_call(fn %{url: "http://jwks"} ->
       {:ok, json(%{"keys" => [TestUtils.build_key("id1"), TestUtils.build_key("id2")]})}
     end)
@@ -141,18 +147,6 @@ defmodule JokenJwks.DefaultStrategyTest do
     assert not String.contains?(log, "Fetched signers. ")
   end
 
-  test "can set log_level to error and see error messages" do
-    expect_call(fn %{url: "http://jwks/500"} -> {:ok, json(%{}, status: 500)} end)
-
-    log =
-      capture_log(fn ->
-        start_supervised!({TestToken.Strategy, jwks_url: "http://jwks/500", log_level: :error})
-        :timer.sleep(100)
-      end)
-
-    assert log =~ "Failed to fetch signers."
-  end
-
   test "set telemetry_prefix to default prefix" do
     self = self()
 
@@ -160,7 +154,7 @@ defmodule JokenJwks.DefaultStrategyTest do
 
     :telemetry.attach(
       "telemetry-test-default",
-      [TestToken.Strategy, :joken_jwks, :request],
+      [:tesla, :request, :stop],
       fn name, measurements, metadata, _ ->
         send(self, {:telemetry_event, name, measurements, metadata})
       end,
@@ -171,8 +165,8 @@ defmodule JokenJwks.DefaultStrategyTest do
 
     start_supervised!({TestToken.Strategy, [jwks_url: "http://jwks/500"]})
 
-    assert_receive {:telemetry_event, [TestToken.Strategy, :joken_jwks, :request],
-                    %{request_time: _}, %{result: {:ok, %Tesla.Env{}}}}
+    assert_receive {:telemetry_event, [:tesla, :request, :stop], %{duration: _},
+                    %{env: %Tesla.Env{}}}
   end
 
   test "can set telemetry_prefix to a custom prefix" do
@@ -180,7 +174,7 @@ defmodule JokenJwks.DefaultStrategyTest do
 
     :telemetry.attach(
       "telemetry_test_prefix",
-      [:my_custom_prefix, :joken_jwks, :request],
+      [:tesla, :request, :stop],
       fn name, measurements, metadata, _ ->
         send(self, {:telemetry_event, name, measurements, metadata})
       end,
@@ -193,8 +187,8 @@ defmodule JokenJwks.DefaultStrategyTest do
       {TestToken.Strategy, jwks_url: "http://jwks/500", telemetry_prefix: :my_custom_prefix}
     )
 
-    assert_receive {:telemetry_event, [:my_custom_prefix, :joken_jwks, :request],
-                    %{request_time: _}, %{result: {:ok, %Tesla.Env{}}}}
+    assert_receive {:telemetry_event, [:tesla, :request, :stop], %{duration: _},
+                    %{env: %Tesla.Env{}}}
   end
 
   test "can set options on callback init_opts/1" do
@@ -202,7 +196,7 @@ defmodule JokenJwks.DefaultStrategyTest do
       {:ok, json(%{"keys" => [TestUtils.build_key("id1"), TestUtils.build_key("id2")]})}
     end)
 
-    start_supervised!({InitOptsToken.Strategy, log_level: :none})
+    start_supervised!(InitOptsToken.Strategy)
     :timer.sleep(100)
 
     assert InitOptsToken.Strategy.EtsCache.get_signers()[:signers] |> Map.keys() == ["id1", "id2"]

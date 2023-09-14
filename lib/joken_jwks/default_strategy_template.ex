@@ -56,10 +56,6 @@ defmodule JokenJwks.DefaultStrategyTemplate do
     - `time_interval` (`integer()` - default 60_000 (1 minute)): time interval
       for polling if it is needed to re-fetch the keys
 
-    - `log_level` (`:none | :debug | :info | :warn | :error` - default
-      `:debug`): the level of log to use for events in the strategy like HTTP
-      errors and so on. It is advised not to turn off logging in production
-
     - `should_start` (`boolean()` - default `true`): whether to start the
       supervised polling task. For tests, this should be false
 
@@ -185,7 +181,6 @@ defmodule JokenJwks.DefaultStrategyTemplate do
           if is_nil(opts[:first_fetch_sync]), do: false, else: opts[:first_fetch_sync]
 
         time_interval = opts[:time_interval] || 60 * 1_000
-        log_level = opts[:log_level] || :debug
         url = opts[:jwks_url] || raise "No url set for fetching JWKS!"
         EtsCache.new()
 
@@ -196,7 +191,6 @@ defmodule JokenJwks.DefaultStrategyTemplate do
         opts =
           opts
           |> Keyword.put(:time_interval, time_interval)
-          |> Keyword.put(:log_level, log_level)
           |> Keyword.put(:jwks_url, url)
           |> Keyword.put(:telemetry_prefix, telemetry_prefix)
           |> Keyword.put(:jws_supported_algs, algs)
@@ -271,42 +265,35 @@ defmodule JokenJwks.DefaultStrategyTemplate do
         case EtsCache.check_state() do
           # no need to re-fetch
           0 ->
-            JokenJwks.log(:debug, opts[:log_level], "Re-fetching cache is not needed.")
+            Logger.debug("Re-fetching cache is not needed.")
             :ok
 
           # start re-fetching
           _counter ->
-            JokenJwks.log(:debug, opts[:log_level], "Re-fetching cache is needed and will start.")
+            Logger.debug("Re-fetching cache is needed and will start.")
             fetch_signers(opts[:jwks_url], opts)
         end
       end
 
       @doc "Fetch signers with `JokenJwks.HttpFetcher`"
       def fetch_signers(url, opts) do
-        log_level = opts[:log_level]
-
         with {:ok, keys} <- HttpFetcher.fetch_signers(url, opts),
              {:ok, signers} <- validate_and_parse_keys(keys, opts) do
-          JokenJwks.log(:debug, log_level, "Fetched signers. #{inspect(signers)}")
+          Logger.debug("Fetched signers. #{inspect(signers)}")
 
           if signers == %{} do
-            JokenJwks.log(:warn, log_level, "NO VALID SIGNERS FOUND!")
+            Logger.warn("NO VALID SIGNERS FOUND!")
           end
 
           EtsCache.put_signers(signers)
           EtsCache.set_status(:ok)
         else
           {:error, _reason} = err ->
-            JokenJwks.log(:error, log_level, "Failed to fetch signers. Reason: #{inspect(err)}")
+            Logger.error("Failed to fetch signers. Reason: #{inspect(err)}")
             EtsCache.set_status(:refresh)
 
           err ->
-            JokenJwks.log(
-              :error,
-              log_level,
-              "Unexpected error while fetching signers. Reason: #{inspect(err)}"
-            )
-
+            Logger.error("Unexpected error while fetching signers. Reason: #{inspect(err)}")
             EtsCache.set_status(:refresh)
         end
       end
@@ -339,7 +326,7 @@ defmodule JokenJwks.DefaultStrategyTemplate do
         end
       rescue
         e ->
-          JokenJwks.log(:error, opts[:log_level], """
+          Logger.error("""
           Error while parsing a key entry fetched from the network.
 
           This should be investigated by a human.

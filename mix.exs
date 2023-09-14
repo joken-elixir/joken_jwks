@@ -9,7 +9,7 @@ defmodule JokenJwks.MixProject do
       app: :joken_jwks,
       version: @version,
       name: "Joken JWKS",
-      elixir: "~> 1.5",
+      elixir: "~> 1.13",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       consolidate_protocols: Mix.env() != :test,
@@ -37,17 +37,17 @@ defmodule JokenJwks.MixProject do
 
   defp deps do
     [
-      {:joken, "~> 2.4"},
-      {:jason, "~> 1.2"},
+      {:joken, "~> 2.6"},
+      {:jason, "~> 1.4"},
       {:tesla, "~> 1.4"},
-      {:hackney, "~> 1.17.4 or ~> 1.18.0"},
+      {:hackney, "~> 1.17.4 or ~> 1.18.0", optional: true},
       {:telemetry, "~> 0.4.2 or ~> 1.0"},
 
       # docs
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
 
       # linters & coverage
-      {:credo, "~> 1.5", only: [:dev, :test], runtime: false},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.14", only: :test},
 
       # tests
