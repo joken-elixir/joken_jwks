@@ -34,12 +34,14 @@ defmodule JokenJwks.DefaultStrategyTest do
       {:ok, %Tesla.Env{status: 500}}
     end)
 
-    start_supervised!({TestToken.Strategy, jwks_url: "http://jwks/500"})
+    assert capture_log(fn ->
+             start_supervised!({TestToken.Strategy, jwks_url: "http://jwks/500"})
 
-    assert_receive {^ref, :continue}
+             assert_receive {^ref, :continue}
 
-    token = TestToken.generate_and_sign!(%{}, TestUtils.create_signer_with_kid("id1"))
-    assert {:error, :no_signers_fetched} == TestToken.verify_and_validate(token)
+             token = TestToken.generate_and_sign!(%{}, TestUtils.create_signer_with_kid("id1"))
+             assert {:error, :no_signers_fetched} == TestToken.verify_and_validate(token)
+           end) =~ "[error] Failed to fetch signers. Reason: {:error, :jwks_server_http_error}"
   end
 
   test "fails if no option was provided" do
@@ -98,11 +100,14 @@ defmodule JokenJwks.DefaultStrategyTest do
       {:ok, json(%{"keys" => [TestUtils.build_key("id1")]}, status: 500)}
     end)
 
-    start_supervised!({TestToken.Strategy, jwks_url: "http://jwks"})
-    :timer.sleep(100)
+    assert capture_log(fn ->
+             start_supervised!({TestToken.Strategy, jwks_url: "http://jwks"})
 
-    token = TestToken.generate_and_sign!(%{}, TestUtils.create_signer_with_kid("id3"))
-    assert {:error, :no_signers_fetched} == TestToken.verify_and_validate(token)
+             :timer.sleep(100)
+
+             token = TestToken.generate_and_sign!(%{}, TestUtils.create_signer_with_kid("id3"))
+             assert {:error, :no_signers_fetched} == TestToken.verify_and_validate(token)
+           end) =~ "[error] Failed to fetch signers. Reason: {:error, :jwks_server_http_error}"
   end
 
   test "can skip start polling and fetching" do
@@ -112,83 +117,61 @@ defmodule JokenJwks.DefaultStrategyTest do
     assert TestToken.Strategy.EtsCache.check_state() == 0
   end
 
-  test "can set log_level to none" do
-    Logger.put_application_level(:joken_jwks, :none)
-    on_exit(fn -> Logger.delete_application_level(:joken_jwks) end)
-
-    expect_call(fn %{url: "http://jwks"} ->
-      {:ok, json(%{"keys" => [TestUtils.build_key("id1"), TestUtils.build_key("id2")]})}
-    end)
-
-    log =
-      capture_log(fn ->
-        start_supervised!({TestToken.Strategy, jwks_url: "http://jwks", log_level: :none})
-        :timer.sleep(100)
-      end)
-
-    assert not String.contains?(log, "Fetched signers. ")
-  end
-
-  test "can set log_level to error and skip debug messages" do
-    Logger.put_application_level(:joken_jwks, :error)
-    on_exit(fn -> Logger.delete_application_level(:joken_jwks) end)
-
-    expect_call(fn %{url: "http://jwks"} ->
-      {:ok, json(%{"keys" => [TestUtils.build_key("id1"), TestUtils.build_key("id2")]})}
-    end)
-
-    log =
-      capture_log(fn ->
-        start_supervised!({TestToken.Strategy, jwks_url: "http://jwks", log_level: :error})
-        :timer.sleep(100)
-      end)
-
-    # debug message not shown
-    assert not String.contains?(log, "Fetched signers. ")
-  end
-
   test "set telemetry_prefix to default prefix" do
     self = self()
 
     on_exit(fn -> :telemetry.detach("telemetry-test-default") end)
 
-    :telemetry.attach(
-      "telemetry-test-default",
-      [:tesla, :request, :stop],
-      fn name, measurements, metadata, _ ->
-        send(self, {:telemetry_event, name, measurements, metadata})
-      end,
-      nil
-    )
+    capture_log(fn ->
+      :telemetry.attach(
+        "telemetry-test-default",
+        [:tesla, :request, :stop],
+        fn name, measurements, metadata, _ ->
+          send(self, {:telemetry_event, name, measurements, metadata})
+        end,
+        nil
+      )
+    end)
 
     expect_call(fn %{url: "http://jwks/500"} -> {:ok, json(%{}, status: 500)} end)
 
-    start_supervised!({TestToken.Strategy, [jwks_url: "http://jwks/500"]})
+    assert capture_log(fn ->
+             start_supervised!({TestToken.Strategy, [jwks_url: "http://jwks/500"]})
 
-    assert_receive {:telemetry_event, [:tesla, :request, :stop], %{duration: _},
-                    %{env: %Tesla.Env{}}}
+             :timer.sleep(100)
+
+             assert_receive {:telemetry_event, [:tesla, :request, :stop], %{duration: _},
+                             %{env: %Tesla.Env{}}}
+           end) =~ "[error] Failed to fetch signers. Reason: {:error, :jwks_server_http_error}"
   end
 
   test "can set telemetry_prefix to a custom prefix" do
     self = self()
 
-    :telemetry.attach(
-      "telemetry_test_prefix",
-      [:tesla, :request, :stop],
-      fn name, measurements, metadata, _ ->
-        send(self, {:telemetry_event, name, measurements, metadata})
-      end,
-      nil
-    )
+    capture_log(fn ->
+      :telemetry.attach(
+        "telemetry_test_prefix",
+        [:tesla, :request, :stop],
+        fn name, measurements, metadata, _ ->
+          send(self, {:telemetry_event, name, measurements, metadata})
+        end,
+        nil
+      )
+    end)
 
     expect_call(fn %{url: "http://jwks/500"} -> {:ok, json(%{}, status: 500)} end)
 
-    start_supervised!(
-      {TestToken.Strategy, jwks_url: "http://jwks/500", telemetry_prefix: :my_custom_prefix}
-    )
+    assert capture_log(fn ->
+             start_supervised!(
+               {TestToken.Strategy,
+                jwks_url: "http://jwks/500", telemetry_metadata: %{test: true}}
+             )
 
-    assert_receive {:telemetry_event, [:tesla, :request, :stop], %{duration: _},
-                    %{env: %Tesla.Env{}}}
+             :timer.sleep(100)
+
+             assert_receive {:telemetry_event, [:tesla, :request, :stop], %{duration: _},
+                             %{env: %Tesla.Env{}, test: true}}
+           end) =~ "[error] Failed to fetch signers. Reason: {:error, :jwks_server_http_error}"
   end
 
   test "can set options on callback init_opts/1" do
@@ -246,18 +229,21 @@ defmodule JokenJwks.DefaultStrategyTest do
   test "even if first fetch sync fails will try to poll" do
     expect_call(2, fn %{url: "http://jwks"} -> {:error, :internal_error} end)
 
-    start_supervised!(
-      {TestToken.Strategy,
-       jwks_url: "http://jwks",
-       first_fetch_sync: true,
-       time_interval: 100,
-       http_max_retries_per_fetch: 1}
-    )
+    assert capture_log(fn ->
+             start_supervised!(
+               # disable retries
+               {TestToken.Strategy,
+                jwks_url: "http://jwks",
+                first_fetch_sync: true,
+                time_interval: 70,
+                http_max_retries_per_fetch: 0}
+             )
 
-    # We expect 3 calls in the timespan of 150 milliseconds:
-    # 1. Try first fetch synchroonusly
-    # 2. Because it fails, it will try again after time_interval
-    :timer.sleep(120)
+             # We expect 2 calls in the timespan of 100 milliseconds:
+             # 1. Try first fetch synchronously
+             # 2. Because it fails, it will try again after time_interval
+             :timer.sleep(100)
+           end) =~ "[error] Failed to fetch signers. Reason: {:error, :internal_error}"
   end
 
   test "ignores keys with `use` as `enc`" do

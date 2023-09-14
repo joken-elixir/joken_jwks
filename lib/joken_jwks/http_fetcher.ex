@@ -10,8 +10,6 @@ defmodule JokenJwks.HttpFetcher do
 
   See our tests for an example of mocking the HTTP fetching.
   """
-  require Logger
-
   alias Tesla.Middleware, as: M
 
   @doc """
@@ -24,32 +22,35 @@ defmodule JokenJwks.HttpFetcher do
   """
   @spec fetch_signers(binary, keyword()) :: {:ok, list} | {:error, atom} | no_return()
   def fetch_signers(url, opts) do
+    metadata = %{url: url, opts: opts}
+
+    :telemetry.span([:joken_jwks, :http_fetcher], metadata, fn ->
+      {do_fetch(url, opts), %{}}
+    end)
+  end
+
+  defp do_fetch(url, opts) do
     with {:ok, resp} <- Tesla.get(new(opts), url),
          {:status, 200} <- {:status, resp.status},
          {:keys, keys} when not is_nil(keys) <- {:keys, resp.body["keys"]} do
-      Logger.debug("JWKS fetching: fetched keys -> #{inspect(keys)}")
       {:ok, keys}
     else
       {:status, status} when is_integer(status) and status >= 400 and status < 500 ->
-        Logger.debug("JWKS fetching: #{status} -> client error")
         {:error, :jwks_client_http_error}
 
       {:status, status} when is_integer(status) and status >= 500 ->
-        Logger.debug("JWKS fetching: #{status} -> server error")
         {:error, :jwks_server_http_error}
 
       {:status, _status} ->
         {:error, :status_not_200}
 
       {:error, :econnrefused} ->
-        Logger.debug("JWKS fetching: could not connect (:econnrefused)")
         {:error, :could_not_reach_jwks_url}
 
       {:keys, nil} ->
         {:error, :no_keys_on_response}
 
       error ->
-        Logger.debug("JWKS fetching: unknown error #{inspect(error)}")
         error
     end
   end
@@ -65,7 +66,6 @@ defmodule JokenJwks.HttpFetcher do
 
     middleware = [
       {M.JSON, decode_content_types: ["application/jwk-set+json"]},
-      M.Logger,
       {M.Telemetry, metadata: opts[:telemetry_metadata]},
       {M.Retry,
        delay: opts[:http_delay_per_retry] || 500,

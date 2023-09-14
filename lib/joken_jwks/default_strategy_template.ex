@@ -40,10 +40,10 @@ defmodule JokenJwks.DefaultStrategyTemplate do
 
   ## Configuration
 
-  Other than the `init_opts/1` callback you can pass options through `Mix.Config` and when starting
+  Other than the `init_opts/1` callback you can pass options through `Config` and when starting
   the supervisor. The order of preference in least significant order is:
 
-    - Per environment `Mix.Config`
+    - Per environment `Config`
     - Supervisor child options
     - `init_opts/1` callback
 
@@ -105,6 +105,19 @@ defmodule JokenJwks.DefaultStrategyTemplate do
         # rest of your token config
       end
 
+
+  ## Telemetry events
+
+  This library produces events for helping understand its behaviour. Event prefix is
+  `[:joken_jwks, :default_strategy]`. It always add the module as a metadata.
+
+  This can be useful to implement logging.
+
+  Events:
+
+  - `[:joken_jwks, :default_strategy, :refetch]`: starts refetching
+  - `[:joken_jwks, :default_strategy, :signers]`: signers sucessfully fetched
+  - `[:joken_jwks, :http_fetcher, :start | :stop | :exception]`: http lifecycle
   """
 
   defmacro __using__(_opts) do
@@ -119,6 +132,8 @@ defmodule JokenJwks.DefaultStrategyTemplate do
       alias JokenJwks.{HttpFetcher, SignerMatchStrategy}
 
       @behaviour SignerMatchStrategy
+      @telemetry_prefix [:joken_jwks, :default_strategy]
+      @telemetry_metadata %{module: __MODULE__}
 
       defmodule EtsCache do
         @moduledoc "Simple ETS counter based state machine"
@@ -247,12 +262,11 @@ defmodule JokenJwks.DefaultStrategyTemplate do
         case EtsCache.check_state() do
           # no need to re-fetch
           0 ->
-            Logger.debug("Re-fetching cache is not needed.")
             :ok
 
           # start re-fetching
           _counter ->
-            Logger.debug("Re-fetching cache is needed and will start.")
+            :telemetry.execute(@telemetry_prefix ++ [:refetch], %{count: 1}, @telemetry_metadata)
             start_fetch_signers(opts[:jwks_url], opts)
         end
       end
@@ -265,10 +279,14 @@ defmodule JokenJwks.DefaultStrategyTemplate do
       def fetch_signers(url, opts) do
         with {:ok, keys} <- HttpFetcher.fetch_signers(url, opts),
              {:ok, signers} <- validate_and_parse_keys(keys, opts) do
-          Logger.debug("Fetched signers. #{inspect(signers)}")
+          :telemetry.execute(
+            @telemetry_prefix ++ [:signers],
+            %{count: 1},
+            Map.put(@telemetry_metadata, :signers, signers)
+          )
 
           if signers == %{} do
-            Logger.warn("NO VALID SIGNERS FOUND!")
+            Logger.warning("NO VALID SIGNERS FOUND!")
           end
 
           EtsCache.put_signers(signers)
