@@ -6,6 +6,8 @@ defmodule JokenJwks.IntegrationTest do
   @google_certs_url "https://www.googleapis.com/oauth2/v3/certs"
   @microsoft_certs_url "https://login.microsoftonline.com/common/discovery/v2.0/keys"
 
+  alias JokenJwks.DefaultStrategyTemplate.EtsCache
+
   defmodule Strategy do
     use JokenJwks.DefaultStrategyTemplate
   end
@@ -18,7 +20,9 @@ defmodule JokenJwks.IntegrationTest do
       first_fetch_sync: true
     )
 
-    assert signers = Strategy.EtsCache.get_signers()
+    :timer.sleep(1_000)
+
+    assert signers = EtsCache.get_signers(Strategy)
     assert Enum.count(signers) >= 1
   end
 
@@ -31,7 +35,9 @@ defmodule JokenJwks.IntegrationTest do
       explicit_alg: "RS256"
     )
 
-    assert signers = Strategy.EtsCache.get_signers()
+    :timer.sleep(1_000)
+
+    assert signers = EtsCache.get_signers(Strategy)
     assert Enum.count(signers) >= 1
   end
 end

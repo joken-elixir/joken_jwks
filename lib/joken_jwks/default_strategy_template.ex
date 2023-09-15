@@ -120,251 +120,205 @@ defmodule JokenJwks.DefaultStrategyTemplate do
   - `[:joken_jwks, :http_fetcher, :start | :stop | :exception]`: http lifecycle
   """
 
+  require Logger
+
+  alias TestToken.Strategy.EtsCache
+  alias JokenJwks.DefaultStrategyTemplate.EtsCache
+  alias JokenJwks.DefaultStrategyTemplate
+  alias Joken.Signer
+  alias JokenJwks.{HttpFetcher, SignerMatchStrategy}
+
+  @telemetry_prefix [:joken_jwks, :default_strategy]
+
   defmacro __using__(_opts) do
-    # credo:disable-for-next-line
     quote do
       use GenServer, restart: :transient
 
-      require Logger
-
-      alias __MODULE__.EtsCache
-      alias Joken.Signer
-      alias JokenJwks.{HttpFetcher, SignerMatchStrategy}
+      alias JokenJwks.DefaultStrategyTemplate
+      alias JokenJwks.SignerMatchStrategy
 
       @behaviour SignerMatchStrategy
-      @telemetry_prefix [:joken_jwks, :default_strategy]
-      @telemetry_metadata %{module: __MODULE__}
-
-      defmodule EtsCache do
-        @moduledoc "Simple ETS counter based state machine"
-
-        @doc "Starts ETS cache"
-        def new do
-          __MODULE__ =
-            :ets.new(__MODULE__, [
-              :set,
-              :public,
-              :named_table,
-              read_concurrency: true,
-              write_concurrency: true
-            ])
-
-          :ets.insert(__MODULE__, {:counter, 0})
-        end
-
-        @doc "Returns 0 - no need to fetch signers or 1 - need to fetch"
-        def check_state do
-          :ets.lookup_element(__MODULE__, :counter, 2)
-        end
-
-        @doc "Sets the cache status"
-        def set_status(:refresh) do
-          :ets.update_counter(__MODULE__, :counter, {2, 1, 1, 1}, {:counter, 0})
-        end
-
-        def set_status(:ok) do
-          :ets.update_counter(__MODULE__, :counter, {2, -1, 1, 0}, {:counter, 0})
-        end
-
-        @doc "Loads fetched signers"
-        def get_signers do
-          :ets.lookup(__MODULE__, :signers)
-        end
-
-        @doc "Puts fetched signers"
-        def put_signers(signers) do
-          :ets.insert(__MODULE__, {:signers, signers})
-        end
-      end
 
       @doc "Callback for initializing options upon strategy startup"
       @spec init_opts(opts :: Keyword.t()) :: Keyword.t()
       def init_opts(opts), do: opts
 
+      @impl SignerMatchStrategy
+      def match_signer_for_kid(kid, opts),
+        do: DefaultStrategyTemplate.match_signer_for_kid(__MODULE__, kid, opts)
+
       defoverridable init_opts: 1
 
       @doc false
-      def start_link(opts) do
-        opts =
-          Application.get_env(:joken_jwks, __MODULE__, [])
-          |> Keyword.merge(opts)
-          |> init_opts()
-
-        start? = if is_nil(opts[:should_start]), do: true, else: opts[:should_start]
-
-        first_fetch_sync =
-          if is_nil(opts[:first_fetch_sync]), do: false, else: opts[:first_fetch_sync]
-
-        time_interval = opts[:time_interval] || 60 * 1_000
-        url = opts[:jwks_url] || raise "No url set for fetching JWKS!"
-        EtsCache.new()
-
-        telemetry_prefix = Keyword.get(opts, :telemetry_prefix, __MODULE__)
-
-        [_, _, {:jws, {:alg, algs}}] = JOSE.JWA.supports()
-
-        opts =
-          opts
-          |> Keyword.put(:time_interval, time_interval)
-          |> Keyword.put(:jwks_url, url)
-          |> Keyword.put(:telemetry_prefix, telemetry_prefix)
-          |> Keyword.put(:jws_supported_algs, algs)
-          |> Keyword.put(:should_start, start?)
-          |> Keyword.put(:first_fetch_sync, first_fetch_sync)
-
-        GenServer.start_link(__MODULE__, opts, name: __MODULE__)
-      end
+      def start_link(opts), do: DefaultStrategyTemplate.start_link(__MODULE__, opts)
 
       # Server (callbacks)
-      @impl true
-      def init(opts) do
-        {should_start, opts} = Keyword.pop!(opts, :should_start)
-        {first_fetch_sync, opts} = Keyword.pop!(opts, :first_fetch_sync)
-        do_init(should_start, first_fetch_sync, opts)
-      end
-
-      defp do_init(should_start, first_fetch_sync, opts) do
-        cond do
-          should_start and first_fetch_sync ->
-            fetch_signers(opts[:jwks_url], opts)
-            {:ok, opts, {:continue, :start_poll}}
-
-          should_start ->
-            fetch_signers(opts[:jwks_url], opts)
-            {:ok, opts, {:continue, :start_poll}}
-
-          true ->
-            :ignore
-        end
-      end
-
-      @impl true
-      def handle_continue(:start_poll, state) do
-        schedule_check_fetch(state)
-        {:noreply, state}
-      end
-
-      @impl SignerMatchStrategy
-      def match_signer_for_kid(kid, opts) do
-        with {:cache, [{:signers, signers}]} <- {:cache, EtsCache.get_signers()},
-             {:signer, signer} when not is_nil(signer) <- {:signer, signers[kid]} do
-          {:ok, signer}
-        else
-          {:signer, nil} ->
-            EtsCache.set_status(:refresh)
-            {:error, :kid_does_not_match}
-
-          {:cache, []} ->
-            {:error, :no_signers_fetched}
-
-          err ->
-            err
-        end
-      end
-
-      defp schedule_check_fetch(state) do
-        interval = state[:time_interval]
-        Process.send_after(self(), :check_fetch, interval)
-      end
+      @impl GenServer
+      def init(opts), do: DefaultStrategyTemplate.init(__MODULE__, opts)
 
       @doc false
-      @impl true
+      @impl GenServer
       def handle_info(:check_fetch, state) do
-        check_fetch(state)
-        schedule_check_fetch(state)
+        DefaultStrategyTemplate.check_fetch(__MODULE__, state[:jwks_url], state)
+        DefaultStrategyTemplate.schedule_check_fetch(__MODULE__, state[:time_interval])
 
         {:noreply, state}
       end
-
-      defp check_fetch(opts) do
-        case EtsCache.check_state() do
-          # no need to re-fetch
-          0 ->
-            :ok
-
-          # start re-fetching
-          _counter ->
-            :telemetry.execute(@telemetry_prefix ++ [:refetch], %{count: 1}, @telemetry_metadata)
-            fetch_signers(opts[:jwks_url], opts)
-        end
-      end
-
-      @doc "Fetch signers with `JokenJwks.HttpFetcher`"
-      def fetch_signers(url, opts) do
-        with {:ok, keys} <- HttpFetcher.fetch_signers(url, opts),
-             {:ok, signers} <- validate_and_parse_keys(keys, opts) do
-          :telemetry.execute(
-            @telemetry_prefix ++ [:signers],
-            %{count: 1},
-            Map.put(@telemetry_metadata, :signers, signers)
-          )
-
-          if signers == %{} do
-            Logger.warning("NO VALID SIGNERS FOUND!")
-          end
-
-          EtsCache.put_signers(signers)
-          EtsCache.set_status(:ok)
-        else
-          {:error, _reason} = err ->
-            Logger.error("Failed to fetch signers. Reason: #{inspect(err)}")
-            EtsCache.set_status(:refresh)
-
-          err ->
-            Logger.error("Unexpected error while fetching signers. Reason: #{inspect(err)}")
-            EtsCache.set_status(:refresh)
-        end
-      end
-
-      defp validate_and_parse_keys(keys, opts) when is_list(keys) do
-        Enum.reduce_while(keys, {:ok, %{}}, fn key, {:ok, acc} ->
-          case parse_signer(key, opts) do
-            {:ok, signer} -> {:cont, {:ok, Map.put(acc, key["kid"], signer)}}
-            # We don't support "enc" keys but should not break otherwise
-            {:error, :not_signing_key} -> {:cont, {:ok, acc}}
-            # We skip unknown JWS algorithms or JWEs
-            {:error, :not_signing_alg} -> {:cont, {:ok, acc}}
-            e -> {:halt, e}
-          end
-        end)
-      end
-
-      defp parse_signer(key, opts) do
-        with {:use, true} <- {:use, key["use"] != "enc"},
-             {:kid, kid} when is_binary(kid) <- {:kid, key["kid"]},
-             {:ok, alg} <- get_algorithm(key["alg"], opts[:explicit_alg]),
-             {:jws_alg?, true} <- {:jws_alg?, alg in opts[:jws_supported_algs]},
-             {:ok, _signer} = res <- {:ok, Signer.create(alg, key)} do
-          res
-        else
-          {:use, false} -> {:error, :not_signing_key}
-          {:kid, _} -> {:error, :kid_not_binary}
-          {:jws_alg?, false} -> {:error, :not_signing_alg}
-          err -> err
-        end
-      rescue
-        e ->
-          Logger.error("""
-          Error while parsing a key entry fetched from the network.
-
-          This should be investigated by a human.
-
-          Key: #{inspect(key)}
-
-          Error: #{inspect(e)}
-          """)
-
-          {:error, :invalid_key_params}
-      end
-
-      # According to JWKS spec (https://tools.ietf.org/html/rfc7517#section-4.4) the "alg"" claim
-      # is not mandatory. This is why we allow this to be passed as a hook option.
-      #
-      # We give preference to the one provided as option
-      defp get_algorithm(nil, nil), do: {:error, :no_algorithm_supplied}
-      defp get_algorithm(_, alg) when is_binary(alg), do: {:ok, alg}
-      defp get_algorithm(alg, _) when is_binary(alg), do: {:ok, alg}
-      defp get_algorithm(_, _), do: {:error, :bad_algorithm}
     end
   end
+
+  @doc false
+  def start_link(module, opts) do
+    opts =
+      Application.get_env(:joken_jwks, module, [])
+      |> Keyword.merge(opts)
+      |> module.init_opts()
+
+    opts[:jwks_url] || raise "No url set for fetching JWKS!"
+
+    GenServer.start_link(module, opts, name: module)
+  end
+
+  @doc false
+  def init(module, opts) do
+    [_, _, {:jws, {:alg, algs}}] = JOSE.JWA.supports()
+
+    opts =
+      opts
+      |> Keyword.put_new(:time_interval, 60 * 1_000)
+      |> Keyword.put(:jws_supported_algs, algs)
+      |> Keyword.put(:mod, module)
+
+    # init callback runs in the server process already
+    EtsCache.new(module)
+
+    if Keyword.get(opts, :first_fetch_sync, true) do
+      fetch_signers(module, opts[:jwks_url], opts)
+    end
+
+    if Keyword.get(opts, :should_start, true) do
+      EtsCache.set_status(module, :refresh)
+      schedule_check_fetch(module, opts[:time_interval])
+      {:ok, opts}
+    else
+      :ignore
+    end
+  end
+
+  @doc false
+  def check_fetch(module, url, opts) do
+    case EtsCache.check_state(module) do
+      # no need to re-fetch
+      0 ->
+        :ok
+
+      # start re-fetching
+      _counter ->
+        :telemetry.execute(@telemetry_prefix ++ [:refetch], %{count: 1}, %{module: module})
+        fetch_signers(module, url, opts)
+    end
+  end
+
+  @doc false
+  def match_signer_for_kid(module, kid, _hook_options) do
+    with {:cache, [{:signers, signers}]} <- {:cache, EtsCache.get_signers(module)},
+         {:signer, signer} when not is_nil(signer) <- {:signer, signers[kid]} do
+      {:ok, signer}
+    else
+      {:signer, nil} ->
+        EtsCache.set_status(module, :refresh)
+        {:error, :kid_does_not_match}
+
+      {:cache, []} ->
+        {:error, :no_signers_fetched}
+
+      err ->
+        err
+    end
+  end
+
+  @doc "Fetch signers with `JokenJwks.HttpFetcher`"
+  def fetch_signers(module, url, opts) do
+    with {:ok, keys} <- HttpFetcher.fetch_signers(url, opts),
+         {:ok, signers} <- validate_and_parse_keys(keys, opts) do
+      :telemetry.execute(
+        @telemetry_prefix ++ [:signers],
+        %{count: 1},
+        %{module: module, signers: signers}
+      )
+
+      if signers == %{} do
+        Logger.warning("NO VALID SIGNERS FOUND!")
+      end
+
+      true = EtsCache.put_signers(module, signers)
+      EtsCache.set_status(module, :ok)
+
+      {:ok, opts}
+    else
+      {:error, _reason} = err ->
+        Logger.error("Failed to fetch signers. Reason: #{inspect(err)}")
+        EtsCache.set_status(module, :refresh)
+        err
+
+      err ->
+        Logger.error("Unexpected error while fetching signers. Reason: #{inspect(err)}")
+        EtsCache.set_status(module, :refresh)
+        err
+    end
+  end
+
+  defp validate_and_parse_keys(keys, opts) when is_list(keys) do
+    Enum.reduce_while(keys, {:ok, %{}}, fn key, {:ok, acc} ->
+      case parse_signer(key, opts) do
+        {:ok, signer} -> {:cont, {:ok, Map.put(acc, key["kid"], signer)}}
+        # We don't support "enc" keys but should not break otherwise
+        {:error, :not_signing_key} -> {:cont, {:ok, acc}}
+        # We skip unknown JWS algorithms or JWEs
+        {:error, :not_signing_alg} -> {:cont, {:ok, acc}}
+        e -> {:halt, e}
+      end
+    end)
+  end
+
+  defp parse_signer(key, opts) do
+    with {:use, true} <- {:use, key["use"] != "enc"},
+         {:kid, kid} when is_binary(kid) <- {:kid, key["kid"]},
+         {:ok, alg} <- get_algorithm(key["alg"], opts[:explicit_alg]),
+         {:jws_alg?, true} <- {:jws_alg?, alg in opts[:jws_supported_algs]},
+         {:ok, _signer} = res <- {:ok, Signer.create(alg, key)} do
+      res
+    else
+      {:use, false} -> {:error, :not_signing_key}
+      {:kid, _} -> {:error, :kid_not_binary}
+      {:jws_alg?, false} -> {:error, :not_signing_alg}
+      err -> err
+    end
+  rescue
+    e ->
+      Logger.error("""
+      Error while parsing a key entry fetched from the network.
+
+      This should be investigated by a human.
+
+      Key: #{inspect(key)}
+
+      Error: #{inspect(e)}
+      """)
+
+      {:error, :invalid_key_params}
+  end
+
+  # According to JWKS spec (https://tools.ietf.org/html/rfc7517#section-4.4) the "alg"" claim
+  # is not mandatory. This is why we allow this to be passed as a hook option.
+  #
+  # We give preference to the one provided as option
+  defp get_algorithm(nil, nil), do: {:error, :no_algorithm_supplied}
+  defp get_algorithm(_, alg) when is_binary(alg), do: {:ok, alg}
+  defp get_algorithm(alg, _) when is_binary(alg), do: {:ok, alg}
+  defp get_algorithm(_, _), do: {:error, :bad_algorithm}
+
+  @doc false
+  def schedule_check_fetch(module, interval),
+    do: Process.send_after(module, :check_fetch, interval)
 end
