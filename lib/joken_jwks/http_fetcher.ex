@@ -8,6 +8,11 @@ defmodule JokenJwks.HttpFetcher do
   This uses the `Tesla` library to make it easy to test or change the adapter
   if wanted.
 
+  Options include:
+
+  - `:http_adapter` (default: `Tesla.Adapter.Hackney`)
+  - `:http_middlewares`: a list of extra `Tesla.Middleware` configurations
+
   See our tests for an example of mocking the HTTP fetching.
   """
   alias Tesla.Middleware, as: M
@@ -49,9 +54,6 @@ defmodule JokenJwks.HttpFetcher do
 
       {:keys, nil} ->
         {:error, :no_keys_on_response}
-
-      error ->
-        error
     end
   end
 
@@ -64,13 +66,13 @@ defmodule JokenJwks.HttpFetcher do
 
     adapter = opts[:http_adapter] || adapter
 
-    middleware = [
-      {M.JSON, decode_content_types: ["application/jwk-set+json"]},
-      {M.Telemetry, metadata: opts[:telemetry_metadata]},
-      {M.Retry,
-       delay: opts[:http_delay_per_retry] || 500,
-       max_retries: opts[:http_max_retries_per_fetch] || 10}
-    ]
+    middleware =
+      [
+        {M.JSON, decode_content_types: ["application/jwk-set+json"]},
+        {M.Retry,
+         delay: opts[:http_delay_per_retry] || 500,
+         max_retries: opts[:http_max_retries_per_fetch] || 10}
+      ] ++ (opts[:http_middlewares] || [])
 
     Tesla.client(middleware, adapter)
   end
