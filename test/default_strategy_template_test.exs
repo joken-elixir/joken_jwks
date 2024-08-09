@@ -285,6 +285,14 @@ defmodule JokenJwks.DefaultStrategyTest do
     assert Enum.count(EtsCache.get_signers(TestToken.Strategy)[:signers]) == 0
   end
 
+  test "ets table creation attempt should not error out even if table already exists" do
+    setup_jwks()
+    EtsCache.new(TestToken.Strategy)
+
+    token = TestToken.generate_and_sign!(%{}, TestUtils.create_signer_with_kid("id2"))
+    assert {:ok, %{}} == TestToken.verify_and_validate(token)
+  end
+
   def setup_jwks(time_interval \\ 1_000) do
     expect_call(fn %{url: "http://jwks"} ->
       {:ok, json(%{"keys" => [TestUtils.build_key("id1"), TestUtils.build_key("id2")]})}
