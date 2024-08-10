@@ -1,17 +1,23 @@
 defmodule JokenJwks.DefaultStrategyTemplate.EtsCache do
   @moduledoc "Simple ETS counter based state machine"
 
-  @doc "Starts ETS cache"
+  @doc "Starts ETS cache - will only create if table doesn't exist already"
   def new(module) do
-    :ets.new(name(module), [
-      :set,
-      :public,
-      :named_table,
-      read_concurrency: true,
-      write_concurrency: true
-    ])
+    case :ets.whereis(name(module)) do
+      :undefined ->
+        :ets.new(name(module), [
+          :set,
+          :public,
+          :named_table,
+          read_concurrency: true,
+          write_concurrency: true
+        ])
 
-    :ets.insert(name(module), {:counter, 0})
+        :ets.insert(name(module), {:counter, 0})
+
+      _ ->
+        true
+    end
   end
 
   @doc "Returns 0 - no need to fetch signers or 1 - need to fetch"
