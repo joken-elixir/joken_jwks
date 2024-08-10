@@ -1,6 +1,6 @@
 # Joken JWKS
 
-[![Build](https://travis-ci.org/joken-elixir/joken_jwks.svg?branch=master)](https://travis-ci.org/joken-elixir/joken_jwks)
+[![CI](https://github.com/joken-elixir/joken/actions/workflows/ci.yml/badge.svg)](https://github.com/joken-elixir/joken_jwks/actions/workflows/ci.yml)
 [![Module Version](https://img.shields.io/hexpm/v/joken_jwks.svg)](https://hex.pm/packages/joken_jwks)
 [![Hex Docs](https://img.shields.io/badge/hex-docs-lightgreen.svg)](https://hexdocs.pm/joken_jwks/)
 [![Total Download](https://img.shields.io/hexpm/dt/joken_jwks.svg)](https://hex.pm/packages/joken_jwks)
