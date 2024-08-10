@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.0-rc.0]
+
 ### BREAKING CHANGES
 
 - No more custom logging (use Logger facilities)
@@ -16,6 +18,9 @@ If you need to disable specific logging from the library, you can use default `L
 - No more custom telemetry (use Teslas built-in)
 
 Tesla has its own middleware for telemetry events. We should just use that :) 
+
+- Different process strategy (thanks @lovebes)
+
 
 ## [1.6.0] - 2021-10-26
 
