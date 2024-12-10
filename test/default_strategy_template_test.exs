@@ -282,7 +282,7 @@ defmodule JokenJwks.DefaultStrategyTest do
              "NO VALID SIGNERS FOUND!"
 
     # use is ignored
-    assert Enum.count(EtsCache.get_signers(TestToken.Strategy)[:signers]) == 0
+    assert Enum.empty?(EtsCache.get_signers(TestToken.Strategy)[:signers])
   end
 
   test "ets table creation attempt should not error out even if table already exists" do
