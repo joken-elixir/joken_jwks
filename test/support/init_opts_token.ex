@@ -9,7 +9,7 @@ defmodule InitOptsToken do
     @doc false
     def init_opts(_other_opts) do
       # override options
-      [jwks_url: "http://jwks"]
+      [jwks_url: "http://jwks", first_fetch_sync: true]
     end
   end
 

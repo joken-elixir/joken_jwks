@@ -68,7 +68,9 @@ defmodule JokenJwks.DefaultStrategyTest do
     expect_call(fn %{url: "http://jwks/500"} -> {:ok, %Tesla.Env{status: 500}} end)
 
     assert capture_log(fn ->
-             start_supervised!({TestToken.Strategy, jwks_url: "http://jwks/500"})
+             start_supervised!(
+               {TestToken.Strategy, jwks_url: "http://jwks/500", first_fetch_sync: true}
+             )
 
              token = TestToken.generate_and_sign!(%{}, TestUtils.create_signer_with_kid("id1"))
              assert {:error, :no_signers_fetched} == TestToken.verify_and_validate(token)
@@ -83,7 +85,8 @@ defmodule JokenJwks.DefaultStrategyTest do
 
     assert capture_log(fn ->
              start_supervised!(
-               {TestToken.Strategy, jwks_url: "http://jwks", http_max_retries_per_fetch: 0}
+               {TestToken.Strategy,
+                jwks_url: "http://jwks", http_max_retries_per_fetch: 0, first_fetch_sync: true}
              )
 
              token = TestToken.generate_and_sign!(%{}, TestUtils.create_signer_with_kid("id1"))
@@ -184,7 +187,9 @@ defmodule JokenJwks.DefaultStrategyTest do
     assert capture_log(fn ->
              start_supervised!(
                {TestToken.Strategy,
-                jwks_url: "http://jwks/500", http_middlewares: [Tesla.Middleware.Telemetry]}
+                jwks_url: "http://jwks/500",
+                http_middlewares: [Tesla.Middleware.Telemetry],
+                first_fetch_sync: true}
              )
            end) =~ "[error] Failed to fetch signers. Reason: {:error, :jwks_server_http_error}"
 
@@ -209,7 +214,9 @@ defmodule JokenJwks.DefaultStrategyTest do
       {:ok, json(%{"keys" => [key]})}
     end)
 
-    start_supervised!({TestToken.Strategy, jwks_url: "http://jwks", explicit_alg: "RS384"})
+    start_supervised!(
+      {TestToken.Strategy, jwks_url: "http://jwks", explicit_alg: "RS384", first_fetch_sync: true}
+    )
 
     token = TestToken.generate_and_sign!(%{}, TestUtils.create_signer_with_kid("id1", "RS384"))
     assert {:ok, %{}} == TestToken.verify_and_validate(token)
@@ -222,7 +229,9 @@ defmodule JokenJwks.DefaultStrategyTest do
       {:ok, json(%{"keys" => [key]})}
     end)
 
-    start_supervised!({TestToken.Strategy, jwks_url: "http://jwks", explicit_alg: "RS384"})
+    start_supervised!(
+      {TestToken.Strategy, jwks_url: "http://jwks", explicit_alg: "RS384", first_fetch_sync: true}
+    )
 
     token = TestToken.generate_and_sign!(%{}, TestUtils.create_signer_with_kid("id1", "RS384"))
     assert {:ok, %{}} == TestToken.verify_and_validate(token)
@@ -235,7 +244,10 @@ defmodule JokenJwks.DefaultStrategyTest do
              start_supervised!(
                # disable retries
                {TestToken.Strategy,
-                jwks_url: "http://jwks", time_interval: 70, http_max_retries_per_fetch: 0}
+                jwks_url: "http://jwks",
+                time_interval: 70,
+                http_max_retries_per_fetch: 0,
+                first_fetch_sync: true}
              )
 
              # We expect 2 calls in the timespan of 100 milliseconds:
@@ -278,7 +290,11 @@ defmodule JokenJwks.DefaultStrategyTest do
        })}
     end)
 
-    assert capture_log(fn -> start_supervised!({TestToken.Strategy, jwks_url: "http://jwks"}) end) =~
+    assert capture_log(fn ->
+             start_supervised!(
+               {TestToken.Strategy, jwks_url: "http://jwks", first_fetch_sync: true}
+             )
+           end) =~
              "NO VALID SIGNERS FOUND!"
 
     # use is ignored
@@ -298,7 +314,10 @@ defmodule JokenJwks.DefaultStrategyTest do
       {:ok, json(%{"keys" => [TestUtils.build_key("id1"), TestUtils.build_key("id2")]})}
     end)
 
-    start_supervised!({TestToken.Strategy, jwks_url: "http://jwks", time_interval: time_interval})
+    start_supervised!(
+      {TestToken.Strategy,
+       jwks_url: "http://jwks", time_interval: time_interval, first_fetch_sync: true}
+    )
   end
 
   defp expect_call(num_of_invocations \\ 1, function),

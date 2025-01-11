@@ -192,7 +192,7 @@ defmodule JokenJwks.DefaultStrategyTemplate do
     # init callback runs in the server process already
     EtsCache.new(module)
 
-    if Keyword.get(opts, :first_fetch_sync, true) do
+    if Keyword.get(opts, :first_fetch_sync) do
       fetch_signers(module, opts[:jwks_url], opts)
     end
 
