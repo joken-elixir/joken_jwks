@@ -192,13 +192,16 @@ defmodule JokenJwks.DefaultStrategyTemplate do
     # init callback runs in the server process already
     EtsCache.new(module)
 
-    if Keyword.get(opts, :first_fetch_sync) do
+    first_fetch_sync = Keyword.get(opts, :first_fetch_sync)
+
+    if first_fetch_sync do
       fetch_signers(module, opts[:jwks_url], opts)
     end
 
     if Keyword.get(opts, :should_start, true) do
       EtsCache.set_status(module, :refresh)
-      schedule_check_fetch(module, opts[:time_interval])
+      initial_interval = if first_fetch_sync, do: opts[:time_interval], else: 0
+      schedule_check_fetch(module, initial_interval)
       {:ok, opts}
     else
       :ignore
