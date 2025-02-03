@@ -44,7 +44,7 @@ defmodule JokenJwks.MixProject do
       {:telemetry, "~> 0.4.2 or ~> 1.0"},
 
       # docs
-      {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
+      {:ex_doc, ">= 0.0.0", only: [:dev, :test], runtime: false},
 
       # linters & coverage
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
