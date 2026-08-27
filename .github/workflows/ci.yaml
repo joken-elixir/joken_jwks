@@ -36,79 +36,81 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - elixir: "1.14"
-            otp: "24"
-          - elixir: "1.15"
-            otp: "25"
           - elixir: "1.16"
             otp: "26"
           - elixir: "1.17"
             otp: "27"
           - elixir: "1.18"
             otp: "27"
+          - elixir: "1.19"
+            otp: "28"
+          - elixir: "1.20"
+            otp: "28"
+          - elixir: "1.20"
+            otp: "29"
             lint: true
 
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    - name: Set up Elixir
-      uses: erlef/setup-beam@v1
-      with:
-        elixir-version: ${{ matrix.elixir }}
-        otp-version: ${{ matrix.otp }}
+      - name: Set up Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: ${{ matrix.elixir }}
+          otp-version: ${{ matrix.otp }}
 
-    - name: Restore deps and _build cache
-      uses: actions/cache@v4
-      with:
-        path: |
-          deps
-          _build
-        key: deps-${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-${{ hashFiles('**/mix.lock') }}-git-${{ github.sha }}
-        restore-keys: |
-          deps-${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-${{ hashFiles('**/mix.lock') }}
-          deps-${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-
+      - name: Restore deps and _build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: deps-${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-${{ hashFiles('**/mix.lock') }}-git-${{ github.sha }}
+          restore-keys: |
+            deps-${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-${{ hashFiles('**/mix.lock') }}
+            deps-${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-
 
-    - name: Create dializer plts path
-      run: mkdir -p priv/plts
+      - name: Create dializer plts path
+        run: mkdir -p priv/plts
 
-    - name: Restore plts cache
-      uses: actions/cache@v4
-      with:
-        path: priv/plts
-        key: plts-${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-${{ hashFiles('**/mix.lock') }}-${{ github.sha }}
-        restore-keys: |
-          plts-${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-${{ hashFiles('**/mix.lock') }}
-          plts-${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-
+      - name: Restore plts cache
+        uses: actions/cache@v4
+        with:
+          path: priv/plts
+          key: plts-${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-${{ hashFiles('**/mix.lock') }}-${{ github.sha }}
+          restore-keys: |
+            plts-${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-${{ hashFiles('**/mix.lock') }}
+            plts-${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-
 
-    - name: Install dependencies
-      run: mix deps.get --only test
+      - name: Install dependencies
+        run: mix deps.get --only test
 
-    - name: Check source code format
-      run: mix format --check-formatted
-      if: ${{ matrix.lint }}
+      - name: Check source code format
+        run: mix format --check-formatted
+        if: ${{ matrix.lint }}
 
-    - name: Perform source code static analysis
-      run: mix credo
-      if: ${{ matrix.lint }}
-      env:
-        MIX_ENV: test
+      - name: Perform source code static analysis
+        run: mix credo
+        if: ${{ matrix.lint }}
+        env:
+          MIX_ENV: test
 
-    - name: Remove compiled application files
-      run: mix clean
+      - name: Remove compiled application files
+        run: mix clean
 
-    - name: Compile dependencies
-      run: mix compile
-      env:
-        MIX_ENV: test
+      - name: Compile dependencies
+        run: mix compile
+        env:
+          MIX_ENV: test
 
-    - name: Compile & lint dependencies
-      run: mix compile --warnings-as-errors
-      env:
-        MIX_ENV: test
+      - name: Compile & lint dependencies
+        run: mix compile --warnings-as-errors
+        env:
+          MIX_ENV: test
 
-    - name: Run tests
-      run: mix coveralls --warnings-as-errors
-      if: ${{ matrix.lint }}
+      - name: Run tests
+        run: mix coveralls --warnings-as-errors
+        if: ${{ matrix.lint }}

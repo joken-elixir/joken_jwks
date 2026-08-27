@@ -23,7 +23,7 @@ defmodule JokenJwks.IntegrationTest do
     :timer.sleep(1_000)
 
     assert signers = EtsCache.get_signers(Strategy)
-    assert Enum.count(signers) >= 1
+    refute Enum.empty?(signers)
   end
 
   @tag :capture_log
@@ -38,6 +38,6 @@ defmodule JokenJwks.IntegrationTest do
     :timer.sleep(1_000)
 
     assert signers = EtsCache.get_signers(Strategy)
-    assert Enum.count(signers) >= 1
+    refute Enum.empty?(signers)
   end
 end

@@ -43,8 +43,6 @@ defmodule JokenJwks do
   `JokenJwks.SignerMatchStrategy` or `JokenJwks.DefaultStrategyTemplate` docs for more information.
   """
 
-  require Logger
-
   use Joken.Hooks
 
   @impl true
