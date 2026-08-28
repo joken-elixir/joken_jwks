@@ -2,14 +2,14 @@ defmodule JokenJwks.MixProject do
   use Mix.Project
 
   @source_url "https://github.com/joken-elixir/joken_jwks"
-  @version "1.7.0-rc.1"
+  @version "1.7.0"
 
   def project do
     [
       app: :joken_jwks,
       version: @version,
       name: "Joken JWKS",
-      elixir: "~> 1.13",
+      elixir: "~> 1.16",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       consolidate_protocols: Mix.env() != :test,
@@ -37,10 +37,10 @@ defmodule JokenJwks.MixProject do
 
   defp deps do
     [
-      {:joken, "~> 2.6"},
+      {:joken, "~> 2.7"},
       {:jason, "~> 1.4"},
       {:tesla, "~> 1.4"},
-      {:hackney, "~> 1.18 or ~> 4.0", optional: true},
+      {:hackney, "~> 4.0 and >= 4.0.1", optional: true},
       {:telemetry, "~> 0.4.2 or ~> 1.0"},
 
       # docs

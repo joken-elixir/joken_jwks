@@ -18,7 +18,7 @@ Please see our [documentation](https://hexdocs.pm/joken_jwks/) for usage.
 ```elixir
 def deps do
   [
-    {:joken_jwks, "~> 1.6.0"}
+    {:joken_jwks, "~> 1.7.0"}
   ]
 end
 ```

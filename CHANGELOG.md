@@ -7,10 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.7.0] - 2025-01-19
+## [1.7.0] - 2025-08-28
 
 - All the changes in the 1.7 RCs!
 - CI housekeeping (thanks @kianmeng)
+- Allow updating hackney 4.x (thanks @andreasknoepfle)
+- Update to Joken 2.7.0
 
 ## [1.7.0-rc.1]
 
